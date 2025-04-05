@@ -1,0 +1,16 @@
+name: EssentialsMagic
+version: '1.0-SNAPSHOT'
+main: org.Bitello.essentialsMagic.EssentialsMagic
+api-version: '1.21'
+depend: [nexo, WorldGuard, WorldEdit, LuckPerms]
+dependencies:
+  - name: WorldGuard
+    required: true
+  - name: WorldEdit
+    required: true
+  - name: LuckPerms
+    required: true
+  - name: Vault
+    required: true
+  - name: Nexo
+    required: true

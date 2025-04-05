@@ -1,0 +1,121 @@
+use_luckperms: false
+use_worldguard: false
+
+
+mysql:
+  host: localhost
+  port: 3306
+  database: mydatabase
+  username: user
+  password: password
+
+
+tp_commands:
+  status: true
+  spawn: true #EssentialsMagic.Spawn EssentialsMagic.SetSpawn
+  spawn_cooldown: 5 #EssentialsMagic.Spawn.byPass
+  spawn_cords:
+    world:
+      x:
+      y:
+      z:
+      yaw:
+      pitch:
+  #tpa: true #EssentialsMagic.Tpa
+  #tpa_cooldown: 5 #EssentialsMagic.Tpa.byPass
+  #tpa_command_cooldown: 5 #EssentialsMagic.Tpa.byPass
+
+
+magicfire:
+  status: true
+  prefix: "&c[Fire]&f"
+  menu:
+    title: "&cMagicFire"
+    size: 54
+    buttons:
+      - spawn:
+          material: spawn
+          name: "&cSpawn"
+          lore:
+            - "&7Teleporta para o spawn."
+          slot: 22
+          action: "/spawn"
+      - magicfire:
+          material: soul_campfire
+          name: "&cMagicFire"
+          lore:
+            - "&7Click para abrir o menu de protais."
+          slot: 40
+          action: magicfire #to direct to menus do not use quotation marks
+  portal_ids:
+    - chama_dos_sonhos #Base
+    - chama_dos_sonhos_ativa #Animation
+    - BEE #Example
+    - BEE_A #Example animation
+  portal_key_id: po_dos_sonhos
+  animation: true
+  portal_ids_animation:
+    - chama_dos_sonhos:chama_dos_sonhos_ativa #Animation
+    - BEE:BEE_A #Example animation
+  default: 2
+  roles: #EssentialsMagic.MagicFire.<role>
+    vip: 4
+    premium: 6
+
+
+magickey:
+  status: true
+  key_cooldown: 5 #EssentialsMagic.MagicKey.time.byPass
+  key_id: #EssentialsMagic.MagicKey.Create
+    - MagicKey1:5000:false:-1 #Key name:distance:interdimencional:reutilizavel
+    - MagicKey2:-1:true:1
+  key_lore:
+    - "&7Chave criada por &c{player}"
+    - "&7Local: &c{location}"
+    - "&7Usos: &c{uses}"
+  home: true #EssentialsMagic.MagicKey.home
+  menu_title: "&cMenu de homes"
+  home_cooldown: 5 #EssentialsMagic.MagicKey.home.byPass
+  home_gui: true
+  menu:
+    size: 45
+    buttons:
+      Home:
+        material: RED_BED
+        name: "&cHome"
+        lore:
+          - "&7Teleporta para a home."
+        slot: 22
+      keySlot:
+        material: NETHER_STAR
+        name: "&cSlote de chave"
+        lore:
+          - "&7Click para adicionar uma chave que esteja na sua mão."
+        roles: #EssentialsMagic.MagicKey.home.<role>
+          Default: [20,24]
+          Vip: [39,41,4]
+          Vip+: [37,43,1,7]
+  world_teleport_blacklist: #EssentialsMagic.MagicKey.teleport.byPass
+    - world_nether
+  world_create_blacklist: #EssentialsMagic.MagicKey.Create.byPass
+    - world_the_end
+
+psgod:
+  status: true
+  prefix: "&c[Deus]&f"
+  alias: [god, pedido, oracao]
+  use_region: true
+  max_per_player: 1
+  restart_days: 7 #7 days
+  start_date: "1010-01-01 00:00:00"
+  mensages:
+    broadcast: "&c{player} &7realizou um pedido"
+    player: "&7Voce realizou um pedido"
+    win: "&7Seu pedido foi atendido"
+    win_broadcast: "&7o pedido de &c{player} &7foi atendido"
+    error: "&7Voce ja realizou um pedido recentemente"
+    invalid: "&4Seu pedido foi sorteado, mas foi negado"
+    admin: "pedido de &c{player} &7é valido?"
+    admin2: "pedido de &c{player} &7f{order}"
+    region: "&7Voce precisa estar em uma regiao sagrada para realizar um pedido"
+    not_permission: "&7Voce nao tem permissao para realizar um pedido"
