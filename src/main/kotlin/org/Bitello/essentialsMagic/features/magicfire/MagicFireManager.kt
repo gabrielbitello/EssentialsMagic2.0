@@ -20,7 +20,7 @@ import net.luckperms.api.model.user.User
 import org.Bitello.essentialsMagic.EssentialsMagic
 import org.Bitello.essentialsMagic.features.magicfire.gui.MagicFire_TpMenu_Manage as tp_menu
 import org.Bitello.essentialsMagic.core.apis.WorldGuardManager as wgm
-//import org.Bitello.essentialsMagic.features.magicfire.MagicFire_Commands_Manager
+import org.Bitello.essentialsMagic.features.magicfire.MagicFire_Commands_Manager
 
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -39,7 +39,7 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
     private val mfMySQL: Magicfire_DataBase_Manager = Magicfire_DataBase_Manager(plugin)
     private val tpMenu: tp_menu = tp_menu(plugin, mfMySQL)
     val pendingPortals: MutableMap<Player, Location> = HashMap()
-    private val awaitingPortalName: MutableMap<UUID, Boolean> = HashMap()
+    private val awaitingPortalName: MutableMap<UUID, Pair<Boolean, String>> = HashMap()
     private val playerLocations: MutableMap<UUID, Location> = HashMap()
 
     fun initialize() {
@@ -50,7 +50,8 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
         // Registrar o handler
         Bukkit.getPluginManager().registerEvents(this, plugin)
 
-        //MagicFire_Commands_Manager(plugin, plugin.configManager, mfMySQL)
+        // Registrar comandos
+        MagicFire_Commands_Manager(plugin, plugin.configManager, mfMySQL)
     }
 
     @EventHandler
@@ -73,13 +74,13 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
                 return
             }
 
-            if (mfMySQL.isPortalNearby(location, 2)) {
+            if (mfMySQL.isPortalNearby(location, 10)) {
                 player.sendMessage("§cNão é possível criar um portal tão próximo de outro!")
                 return
             }
 
             pendingPortals[player] = location
-            awaitingPortalName[player.uniqueId] = true
+            awaitingPortalName[player.uniqueId] = Pair(true, itemId)
             playerLocations[player.uniqueId] = player.location
             player.sendMessage("§aPor favor, digite o nome do portal no chat. Você tem 30 segundos para responder.")
             PortalNameTimeoutTask(this, player).runTaskLater(plugin, 600L)
@@ -119,7 +120,8 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
         if (!isMagicFireEnabled(plugin)) return
 
         val player = event.player
-        if (awaitingPortalName.getOrDefault(player.uniqueId, false)) {
+        if (awaitingPortalName.getOrDefault(player.uniqueId, Pair(false, "")).first) {
+            val itemId = awaitingPortalName[player.uniqueId]?.second
             event.isCancelled = true
             val portalName = event.message.trim()
             val location = pendingPortals[player]
@@ -143,7 +145,7 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
                     1,
                     "",
                     0,
-                    "default",
+                    itemId,
                     player.location.yaw
                 )
             ) {
@@ -159,9 +161,9 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
         if (!isMagicFireEnabled(plugin)) return
 
         val player = event.player
-        if (awaitingPortalName.getOrDefault(player.uniqueId, false)) {
+        if (awaitingPortalName.getOrDefault(player.uniqueId, Pair(false, "")).first) {
             val initialLocation = playerLocations[player.uniqueId]
-            if (initialLocation != null && initialLocation != player.location) {
+            if (initialLocation != null && (initialLocation.x != player.location.x || initialLocation.y != player.location.y || initialLocation.z != player.location.z)) {
                 awaitingPortalName.remove(player.uniqueId)
                 playerLocations.remove(player.uniqueId)
                 pendingPortals.remove(player)
@@ -201,18 +203,15 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
             val portalKeyId = plugin.configManager.getMagicFirePortalKeyId()
 
             if (portalKeyId == NexoItems.idFromItem(itemInHand)) {
-                player.sendMessage("§aVocê interagiu com o portal com a chave correta.")
                 val fireLocation: Location = event.baseEntity.location
                 tpMenu.openMenu(player, fireLocation)
-            } else {
-                player.sendMessage("§cVocê precisa da chave correta para interagir com este portal.")
             }
         }
     }
 
     class PortalNameTimeoutTask(private val magicFire: MagicFireManager, private val player: Player) : BukkitRunnable() {
         override fun run() {
-            if (magicFire.awaitingPortalName.getOrDefault(player.uniqueId, false)) {
+            if (magicFire.awaitingPortalName.getOrDefault(player.uniqueId, Pair(false, "")).first) {
                 magicFire.awaitingPortalName.remove(player.uniqueId)
                 magicFire.playerLocations.remove(player.uniqueId)
                 magicFire.pendingPortals.remove(player)

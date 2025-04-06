@@ -401,6 +401,7 @@ class MagicFire_TpMenu_Manage(private val plugin: JavaPlugin, private val mfMySQ
 
             for (entry in plugin.config.getStringList("magicfire.portal_ids_animation")) {
                 val parts = entry.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                Bukkit.getConsoleSender().sendMessage("Parts: " + Arrays.toString(parts))
                 if (parts.size == 2) {
                     portalAnimations[parts[0]] = parts[1]
                 }
@@ -414,7 +415,7 @@ class MagicFire_TpMenu_Manage(private val plugin: JavaPlugin, private val mfMySQ
                 return
             }
 
-            if (animationEnabled) {
+           if (animationEnabled) {
                 val portalIdAnimation = portalAnimations[portalType]
                 if (portalIdAnimation != null) {
                     NexoFurniture.remove(portalLocation, null)
@@ -427,7 +428,6 @@ class MagicFire_TpMenu_Manage(private val plugin: JavaPlugin, private val mfMySQ
                 }
             }
 
-            plugin.logger.info("Teleporting player to portal of type: $portalType")
             val playerLocation = portalLocation.clone()
             playerLocation.pitch = player.location.pitch // Manter o pitch do jogador
             playerLocation.yaw = (portalLocation.yaw + 180) % 360 // Inverter o yaw

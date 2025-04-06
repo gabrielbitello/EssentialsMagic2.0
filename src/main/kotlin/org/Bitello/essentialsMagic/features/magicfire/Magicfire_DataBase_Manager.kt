@@ -24,7 +24,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
         if (!configManager.isMagicFireEnabled()) return
 
         val createTableSQL = """
-            CREATE TABLE IF NOT EXISTS warp_network (
+            CREATE TABLE IF NOT EXISTS EM_MagicFire (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 player_uuid VARCHAR(36),
                 name VARCHAR(255),
@@ -55,7 +55,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     val portals: List<tp_menu.Portal>
         get() {
             val portals = mutableListOf<tp_menu.Portal>()
-            val query = "SELECT * FROM warp_network"
+            val query = "SELECT * FROM EM_MagicFire"
 
             try {
                 connection?.createStatement()?.use { statement ->
@@ -87,7 +87,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
         }
 
     fun getPortalByName(name: String?): tp_menu.Portal? {
-        val query = "SELECT * FROM warp_network WHERE name = ?"
+        val query = "SELECT * FROM EM_MagicFire WHERE name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, name)
@@ -117,7 +117,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun incrementVisits(portalName: String?) {
-        val query = "UPDATE warp_network SET visits = visits + 1 WHERE name = ?"
+        val query = "UPDATE EM_MagicFire SET visits = visits + 1 WHERE name = ?"
         try {
             connection?.prepareStatement(query)?.use { stmt ->
                 stmt.setString(1, portalName)
@@ -130,7 +130,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
 
     fun isPortalNearby(location: Location, radius: Int): Boolean {
         val query = """
-            SELECT COUNT(*) AS count FROM warp_network WHERE world = ? AND 
+            SELECT COUNT(*) AS count FROM EM_MagicFire WHERE world = ? AND 
             SQRT(POW(x - ?, 2) + POW(y - ?, 2) + POW(z - ?, 2)) <= ?
         """.trimIndent()
         try {
@@ -153,7 +153,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun isPortalNameExists(name: String?): Boolean {
-        val query = "SELECT COUNT(*) AS count FROM warp_network WHERE name = ?"
+        val query = "SELECT COUNT(*) AS count FROM EM_MagicFire WHERE name = ?"
         try {
             connection?.prepareStatement(query)?.use { pstmt ->
                 pstmt.setString(1, name)
@@ -188,7 +188,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
         yaw: Float
     ): Boolean {
         val maxPortals = getMaxPortals(player)
-        val query = "SELECT COUNT(*) AS count FROM warp_network WHERE player_uuid = ?"
+        val query = "SELECT COUNT(*) AS count FROM EM_MagicFire WHERE player_uuid = ?"
         try {
             connection?.prepareStatement(query)?.use { pstmt ->
                 pstmt.setString(1, playerUUID)
@@ -237,7 +237,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
         yaw: Float
     ) {
         val insertSQL = """
-            INSERT INTO warp_network (player_uuid, name, description, category, icon, world, x, y, z, status, banned_players, visits, portal_type, yaw) 
+            INSERT INTO EM_MagicFire (player_uuid, name, description, category, icon, world, x, y, z, status, banned_players, visits, portal_type, yaw) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.trimIndent()
         try {
@@ -265,7 +265,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
 
     fun deleteNearbyPortal(location: Location, radius: Int) {
         val query = """
-            DELETE FROM warp_network WHERE world = ? AND 
+            DELETE FROM EM_MagicFire WHERE world = ? AND 
             SQRT(POW(x - ?, 2) + POW(y - ?, 2) + POW(z - ?, 2)) <= ? LIMIT 1
         """.trimIndent()
         try {
@@ -302,7 +302,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
 
     fun getPortalsByCategory(category: String?): List<tp_menu.Portal> {
         val portals = mutableListOf<tp_menu.Portal>()
-        val query = "SELECT * FROM warp_network WHERE category = ?"
+        val query = "SELECT * FROM EM_MagicFire WHERE category = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, category)
@@ -333,7 +333,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun isPortalOwner(playerUUID: UUID, portalName: String?): PortalInfo? {
-        val query = "SELECT yaw, world, x, y, z, banned_players FROM warp_network WHERE player_uuid = ? AND name = ?"
+        val query = "SELECT yaw, world, x, y, z, banned_players FROM EM_MagicFire WHERE player_uuid = ? AND name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, playerUUID.toString())
@@ -359,7 +359,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun updatePortalType(playerUUID: UUID, newPortalType: String?) {
-        val query = "UPDATE warp_network SET portal_type = ? WHERE player_uuid = ?"
+        val query = "UPDATE EM_MagicFire SET portal_type = ? WHERE player_uuid = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, newPortalType)
@@ -385,7 +385,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun updatePortalLocation(playerUUID: UUID, portalName: String?, newLocation: Location, newYaw: Float) {
-        val query = "UPDATE warp_network SET world = ?, x = ?, y = ?, z = ?, yaw = ? WHERE player_uuid = ? AND name = ?"
+        val query = "UPDATE EM_MagicFire SET world = ?, x = ?, y = ?, z = ?, yaw = ? WHERE player_uuid = ? AND name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, newLocation.world.name)
@@ -404,7 +404,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun updateBannedPlayers(portalName: String?, bannedPlayers: String?) {
-        val query = "UPDATE warp_network SET banned_players = ? WHERE name = ?"
+        val query = "UPDATE EM_MagicFire SET banned_players = ? WHERE name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, bannedPlayers)
@@ -418,7 +418,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun updatePortalIcon(playerUUID: UUID, portalName: String?, iconType: String?) {
-        val query = "UPDATE warp_network SET icon = ? WHERE player_uuid = ? AND name = ?"
+        val query = "UPDATE EM_MagicFire SET icon = ? WHERE player_uuid = ? AND name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, iconType)
@@ -433,7 +433,7 @@ class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun updatePortalCategory(playerUUID: UUID, portalName: String?, category: String?) {
-        val query = "UPDATE warp_network SET category = ? WHERE player_uuid = ? AND name = ?"
+        val query = "UPDATE EM_MagicFire SET category = ? WHERE player_uuid = ? AND name = ?"
         try {
             connection?.prepareStatement(query)?.use { statement ->
                 statement.setString(1, category)

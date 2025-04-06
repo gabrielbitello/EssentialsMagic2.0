@@ -10,6 +10,7 @@ import org.Bitello.essentialsMagic.core.config.ConfigManager
 import org.Bitello.essentialsMagic.core.database.DataBaseManager
 
 import org.Bitello.essentialsMagic.features.magicfire.MagicFireManager
+import org.Bitello.essentialsMagic.features.magickey.MagicKeyManager
 
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
@@ -34,6 +35,8 @@ class EssentialsMagic : JavaPlugin() {
 
 
     lateinit var magicfireManager: MagicFireManager
+        private set
+    lateinit var magickeyManager: MagicKeyManager
         private set
 
     override fun onLoad() {
@@ -61,6 +64,10 @@ class EssentialsMagic : JavaPlugin() {
         // MagicFire initialization
         magicfireManager = MagicFireManager(this)
         magicfireManager.initialize()
+
+        // MagicKey initialization
+        magickeyManager = MagicKeyManager(this)
+        magickeyManager.initialize()
 
         // WorldGuard initialization
 
