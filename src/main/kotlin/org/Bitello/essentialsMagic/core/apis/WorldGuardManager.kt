@@ -3,11 +3,11 @@ package org.Bitello.essentialsMagic.core.apis
 import com.sk89q.worldedit.bukkit.BukkitAdapter
 import com.sk89q.worldguard.WorldGuard
 import com.sk89q.worldguard.protection.flags.StateFlag
+import org.Bitello.essentialsMagic.EssentialsMagic
 
 import org.bukkit.Location
-import org.bukkit.plugin.java.JavaPlugin
 
-class WorldGuardManager(private val plugin: JavaPlugin) {
+class WorldGuardManager(private val plugin: EssentialsMagic) {
 
     fun initialize() {
 

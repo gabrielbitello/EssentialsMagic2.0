@@ -8,6 +8,7 @@ import org.Bitello.essentialsMagic.EssentialsMagic
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.entity.Player
+
 import java.sql.Connection
 import java.sql.SQLException
 import java.util.*

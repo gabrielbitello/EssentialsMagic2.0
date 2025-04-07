@@ -23,11 +23,11 @@ class MagicKey_DataBase_Manager(private val plugin: EssentialsMagic) {
 
         val createTableSQL = "CREATE TABLE IF NOT EXISTS EM_MagicKey (" +
                 "player_id VARCHAR(36) PRIMARY KEY," +
-                "world VARCHAR(255) NOT NULL," +
-                "x DOUBLE NOT NULL," +
-                "y DOUBLE NOT NULL," +
-                "z DOUBLE NOT NULL," +
-                "yaw VARCHAR(255) NOT NULL," +
+                "world VARCHAR(255) NULL," +
+                "x DOUBLE NULL," +
+                "y DOUBLE NULL," +
+                "z DOUBLE NULL," +
+                "yaw VARCHAR(255)NULL," +
                 "`MK-a` VARCHAR(800) NULL," +
                 "`MK-b` VARCHAR(2000) NULL" +
                 ");"
@@ -42,15 +42,31 @@ class MagicKey_DataBase_Manager(private val plugin: EssentialsMagic) {
     }
 
     fun setHome(playerId: UUID, world: String?, x: Double, y: Double, z: Double, yaw: Float) {
-        val query = "REPLACE INTO EM_MagicKey (player_id, world, x, y, z, yaw) VALUES (?, ?, ?, ?, ?, ?)"
         try {
+            // Primeiro verifica se o jogador já tem um registro
+            val checkQuery = "SELECT 1 FROM EM_MagicKey WHERE player_id = ?"
+            var exists = false
+            connection?.prepareStatement(checkQuery)?.use { checkStatement ->
+                checkStatement.setString(1, playerId.toString())
+                checkStatement.executeQuery().use { resultSet ->
+                    exists = resultSet.next()
+                }
+            }
+
+            // Se o registro existir, atualiza. Caso contrário, insere
+            val query = if (exists) {
+                "UPDATE EM_MagicKey SET world = ?, x = ?, y = ?, z = ?, yaw = ? WHERE player_id = ?"
+            } else {
+                "INSERT INTO EM_MagicKey (world, x, y, z, yaw, player_id) VALUES (?, ?, ?, ?, ?, ?)"
+            }
+
             connection?.prepareStatement(query)?.use { statement ->
-                statement.setString(1, playerId.toString())
-                statement.setString(2, world)
-                statement.setDouble(3, x)
-                statement.setDouble(4, y)
-                statement.setDouble(5, z)
-                statement.setFloat(6, yaw)
+                statement.setString(1, world)
+                statement.setDouble(2, x)
+                statement.setDouble(3, y)
+                statement.setDouble(4, z)
+                statement.setFloat(5, yaw)
+                statement.setString(6, playerId.toString())
                 statement.executeUpdate()
             }
         } catch (e: SQLException) {
@@ -90,11 +106,21 @@ class MagicKey_DataBase_Manager(private val plugin: EssentialsMagic) {
             return false
         }
 
-        val query = "UPDATE EM_MagicKey SET `MK-a` = ? WHERE player_id = ?"
+        val query = if (existingData == null) {
+            "INSERT INTO EM_MagicKey (player_id, `MK-a`) VALUES (?, ?)"
+        } else {
+            "UPDATE EM_MagicKey SET `MK-a` = ? WHERE player_id = ?"
+        }
+
         try {
             connection?.prepareStatement(query)?.use { statement ->
-                statement.setString(1, newData)
-                statement.setString(2, playerUUID.toString())
+                if (existingData == null) {
+                    statement.setString(1, playerUUID.toString())
+                    statement.setString(2, newData)
+                } else {
+                    statement.setString(1, newData)
+                    statement.setString(2, playerUUID.toString())
+                }
                 statement.executeUpdate()
             }
             return true

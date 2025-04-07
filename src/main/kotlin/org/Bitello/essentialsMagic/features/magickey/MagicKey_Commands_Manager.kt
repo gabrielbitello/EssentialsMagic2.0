@@ -3,11 +3,9 @@ package org.Bitello.essentialsMagic.features.magickey
 import org.Bitello.essentialsMagic.features.magickey.gui.MagicKey_Menu_Manager
 import org.Bitello.essentialsMagic.EssentialsMagic
 
-import net.luckperms.api.LuckPerms
-import net.luckperms.api.node.Node
-
 import org.Bitello.essentialsMagic.core.apis.WorldGuardManager
-import org.bukkit.Bukkit
+import org.Bitello.essentialsMagic.core.config.ConfigManager
+
 import org.bukkit.Location
 import org.bukkit.command.Command
 import org.bukkit.command.CommandExecutor
@@ -17,11 +15,41 @@ import org.bukkit.entity.Player
 
 import java.util.*
 
-class MagicKey_Commands_Manager(private val plugin: EssentialsMagic) : CommandExecutor, TabCompleter {
-    private val mkMySQL = MagicKey_DataBase_Manager(plugin)
-    private val luckPerms = Bukkit.getServicesManager().load(LuckPerms::class.java)
+class MagicKey_Commands_Manager(
+    private val plugin: EssentialsMagic,
+    private val configManager: ConfigManager,
+    private val mkMySQL: MagicKey_DataBase_Manager
+) : CommandExecutor, TabCompleter {
     private val homeCooldowns: MutableMap<UUID, Long> = HashMap()
     private val homeMenu = MagicKey_Menu_Manager(plugin) // Adiciona a instância de home_menu
+
+    init {
+        registerCommand("home")
+    }
+
+    private fun registerCommand(name: String) {
+        try {
+            val commandMap = plugin.server.commandMap
+            val command = object : Command(name) {
+                override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
+                    return this@MagicKey_Commands_Manager.onCommand(sender, this, commandLabel, args)
+                }
+
+                override fun tabComplete(sender: CommandSender, alias: String, args: Array<String>): List<String> {
+                    return this@MagicKey_Commands_Manager.onTabComplete(sender, this, alias, args) ?: emptyList()
+                }
+            }
+
+            command.description = "Comando principal do MagicKey"
+            command.usage = "/$name [subcomando]"
+            command.aliases = listOf("mf")
+
+            commandMap.register(plugin.name.lowercase(), command)
+        } catch (e: Exception) {
+            plugin.logger.severe("Erro ao registrar o comando $name: ${e.message}")
+            e.printStackTrace()
+        }
+    }
 
     override fun onCommand(sender: CommandSender, command: Command, label: String, args: Array<String>): Boolean {
         if (sender !is Player) {
@@ -54,12 +82,9 @@ class MagicKey_Commands_Manager(private val plugin: EssentialsMagic) : CommandEx
     }
 
     private fun teleportToHome(player: Player, playerId: UUID) {
-        if (luckPerms != null) {
-            val user = luckPerms.userManager.getUser(playerId)
-            if (user != null && !user.nodes.contains(Node.builder("EssentialsMagic.MagicKey.home").build())) {
-                player.sendMessage("§cVocê não tem permissão para usar este comando.")
-                return
-            }
+        if (!EssentialsMagic.instance.luckPerms.hasPermission(player, "EssentialsMagic.MagicKey.home")) {
+            player.sendMessage("§cVocê não tem permissão para usar este comando.")
+            return
         }
 
         val cooldown: Long = plugin.getConfig().getInt("magickey.home_cooldown", 5) * 1000L
@@ -94,12 +119,9 @@ class MagicKey_Commands_Manager(private val plugin: EssentialsMagic) : CommandEx
     }
 
     private fun setHome(player: Player, playerId: UUID) {
-        if (luckPerms != null) {
-            val user = luckPerms.userManager.getUser(playerId)
-            if (user != null && !user.nodes.contains(Node.builder("EssentialsMagic.MagicKey.home").build())) {
-                player.sendMessage("§cVocê não tem permissão para definir uma home.")
-                return
-            }
+        if (!EssentialsMagic.instance.luckPerms.hasPermission(player, "EssentialsMagic.MagicKey.home")) {
+            player.sendMessage("§cVocê não tem permissão para usar este comando.")
+            return
         }
 
         if (!canCreateHome(player)) {
@@ -110,7 +132,7 @@ class MagicKey_Commands_Manager(private val plugin: EssentialsMagic) : CommandEx
         val location = player.location
         val world = location.world.name
         val createBlacklist: List<String> = plugin.getConfig().getStringList("magickey.world_create_blacklist")
-        if (createBlacklist.contains(world) && !player.hasPermission("EssentialsMagic.MagicKey.Create.byPass")) {
+        if (createBlacklist.contains(world) && !EssentialsMagic.instance.luckPerms.hasPermission(player,"EssentialsMagic.MagicKey.Create.byPass")) {
             player.sendMessage("§cVocê não pode definir uma home neste mundo.")
             return
         }

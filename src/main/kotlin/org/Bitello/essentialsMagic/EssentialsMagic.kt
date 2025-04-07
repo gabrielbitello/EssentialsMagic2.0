@@ -6,6 +6,7 @@ import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 
 import org.Bitello.essentialsMagic.core.apis.WorldGuardManager
+import org.Bitello.essentialsMagic.core.apis.LuckPermsManager
 import org.Bitello.essentialsMagic.core.config.ConfigManager
 import org.Bitello.essentialsMagic.core.database.DataBaseManager
 
@@ -31,6 +32,7 @@ class EssentialsMagic : JavaPlugin() {
 
     lateinit var worldGuard: WorldGuardManager
         private set
+    lateinit var luckPerms: LuckPermsManager
 
 
 
@@ -45,7 +47,7 @@ class EssentialsMagic : JavaPlugin() {
         configManager = ConfigManager(this)
         configManager.loadConfigs()
 
-
+        // WorldGuardManager initialization
         try {
             WorldGuardManager(this).initialize()
         } catch (e: Exception) {
@@ -69,7 +71,14 @@ class EssentialsMagic : JavaPlugin() {
         magickeyManager = MagicKeyManager(this)
         magickeyManager.initialize()
 
-        // WorldGuard initialization
+        // LuckPerms initialization
+        try {
+            luckPerms = LuckPermsManager(this)
+            luckPerms.initialize()
+        } catch (e: Exception) {
+            logger.severe("Erro ao inicializar LuckPermsManager: ${e.message}")
+            e.printStackTrace()
+        }
 
         val message = LegacyComponentSerializer.legacySection().serialize(
             Component.text("[EssentialsMagic] plugin has been enabled.").color(NamedTextColor.LIGHT_PURPLE))

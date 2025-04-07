@@ -10,7 +10,7 @@ import net.luckperms.api.node.Node
 
 import org.Bitello.essentialsMagic.core.apis.WorldGuardManager
 import org.Bitello.essentialsMagic.EssentialsMagic
-import org.Bitello.essentialsMagic.features.magicfire.MagicFire_Commands_Manager
+import org.Bitello.essentialsMagic.features.magicfire.Magicfire_DataBase_Manager
 
 import org.bukkit.Bukkit
 import org.bukkit.Location
@@ -26,14 +26,14 @@ import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.scheduler.BukkitRunnable
-import org.bukkit.command.Command
-import org.bukkit.command.CommandSender
 
 
 
 class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
     private val config = plugin.config
     private val teleportingPlayers: MutableMap<Player, Location> = HashMap()
+    private val mkMySQL: MagicKey_DataBase_Manager = MagicKey_DataBase_Manager(plugin)
+    private val keyCreationLock = Any()
 
 
     fun initialize() {
@@ -44,31 +44,8 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
         // Registra o listener de eventos
         Bukkit.getPluginManager().registerEvents(this, plugin)
 
-        registerCommand("home")
-    }
-
-    private fun registerCommand(name: String) {
-        try {
-            val commandMap = plugin.server.commandMap
-            val command = object : Command(name) {
-                override fun execute(sender: CommandSender, commandLabel: String, args: Array<String>): Boolean {
-                    return MagicKey_Commands_Manager(plugin).onCommand(sender, this, commandLabel, args)
-                }
-
-                override fun tabComplete(sender: CommandSender, alias: String, args: Array<String>): List<String> {
-                    return MagicKey_Commands_Manager(plugin).onTabComplete(sender, this, alias, args) ?: emptyList()
-                }
-            }
-
-            command.description = "Comando principal do MagicKey"
-            command.usage = "/$name [subcomando]"
-            command.aliases = listOf("mk")
-
-            commandMap.register(plugin.name.lowercase(), command)
-        } catch (e: Exception) {
-            plugin.logger.severe("Erro ao registrar o comando $name: ${e.message}")
-            e.printStackTrace()
-        }
+        // Registra o comando
+        MagicKey_Commands_Manager(plugin, plugin.configManager, mkMySQL)
     }
 
     @EventHandler
@@ -210,7 +187,7 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
             player.sendMessage("§aTeleporte concluído com sucesso.")
             teleportingPlayers.remove(player)
             if (uses > 0) {
-                updateUsesInKey(key, uses - 1)
+                updateUsesInKey(key, uses - 1, player, targetLocation)
                 player.sendMessage("§aUsos restantes da chave: " + (uses - 1))
             }
         } else {
@@ -224,7 +201,7 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
                         player.sendMessage("§aTeleporte concluído com sucesso.")
                         teleportingPlayers.remove(player)
                         if (uses > 0) {
-                            updateUsesInKey(key, uses - 1)
+                            updateUsesInKey(key, uses - 1, player, targetLocation)
                             player.sendMessage("§aUsos restantes da chave: " + (uses - 1))
                         }
                     }
@@ -238,53 +215,55 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
     }
 
     private fun handleKeyCreation(player: Player, key: ItemStack) {
-        // Verificar se o item é uma chave válida via Oraxen
-        if (!isValidKey(key)) {
-            player.sendMessage("§cErro: O item não é uma chave válida.")
-            return
-        }
-
-        // Verificar se a região permite a criação de chaves mágicas
-        if (!canCreateMagicKey(player)) {
-            player.sendMessage("§cVocê não tem permissão para criar uma chave mágica nesta região.")
-            return
-        }
-
-        // Obter o ID da chave
-        val keyId: String? = NexoItems.idFromItem(key)
-        var isRestricted = false
-
-        // Verificar a configuração específica da chave
-        val keyConfigs = config.getStringList("magickey.key_id")
-        for (keyConfig in keyConfigs) {
-            val parts = keyConfig.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-            if (parts.size > 0 && parts[0] == keyId) {
-                if (parts.size > 4) { // Verificar se há pelo menos 5 elementos
-                    isRestricted =
-                        parts[4].trim { it <= ' ' }.toBoolean() // Supondo que a restrição de mundo está na posição 4
-                }
-                break
+        synchronized(keyCreationLock) {
+            // Verificar se o item é uma chave válida via Oraxen
+            if (!isValidKey(key)) {
+                player.sendMessage("§cErro: O item não é uma chave válida.")
+                return
             }
-        }
 
-        // Verificar se o mundo está na blacklist de criação de chaves
-        val createBlacklist = config.getStringList("magickey.world_create_blacklist")
-        if (createBlacklist.contains(player.world.name)) {
-            player.sendMessage("§cVocê não pode criar uma chave neste mundo.")
-            return
-        }
+            // Verificar se a região permite a criação de chaves mágicas
+            if (!canCreateMagicKey(player)) {
+                player.sendMessage("§cVocê não tem permissão para criar uma chave mágica nesta região.")
+                return
+            }
 
-        // Deletar a lore antiga da chave
-        val meta = key.itemMeta
-        if (meta != null) {
-            meta.lore = ArrayList()
-            key.setItemMeta(meta)
-        }
+            // Obter o ID da chave
+            val keyId: String? = NexoItems.idFromItem(key)
+            var isRestricted = false
 
-        // Adicionar a nova lore usando a formatação do config.yml
-        saveLocationInKeyLore(key, player.location, player)
-        addEnchantmentEffect(key)
-        player.sendMessage("§aChave criada com sucesso.")
+            // Verificar a configuração específica da chave
+            val keyConfigs = config.getStringList("magickey.key_id")
+            for (keyConfig in keyConfigs) {
+                val parts = keyConfig.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
+                if (parts.size > 0 && parts[0] == keyId) {
+                    if (parts.size > 4) { // Verificar se há pelo menos 5 elementos
+                        isRestricted =
+                            parts[4].trim { it <= ' ' }.toBoolean() // Supondo que a restrição de mundo está na posição 4
+                    }
+                    break
+                }
+            }
+
+            // Verificar se o mundo está na blacklist de criação de chaves
+            val createBlacklist = config.getStringList("magickey.world_create_blacklist")
+            if (createBlacklist.contains(player.world.name)) {
+                player.sendMessage("§cVocê não pode criar uma chave neste mundo.")
+                return
+            }
+
+            // Deletar a lore antiga da chave
+            val meta = key.itemMeta
+            if (meta != null) {
+                meta.lore = ArrayList()
+                key.setItemMeta(meta)
+            }
+
+            // Adicionar a nova lore usando a formatação do config.yml
+            saveLocationInKeyLore(key, player.location, player)
+            addEnchantmentEffect(key)
+            player.sendMessage("§aChave criada com sucesso.")
+        }
     }
 
     private fun canCreateMagicKey(player: Player): Boolean {
@@ -358,7 +337,22 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
         return 0 // Retorna 0 se a chave não tiver a lore esperada
     }
 
-    private fun updateUsesInKey(key: ItemStack, uses: Int) {
+    private fun updateUsesInKey(key: ItemStack, uses: Int, player: Player, targetLocation: Location) {
+        // Se os usos chegaram a 0, remover a chave (exceto se for ilimitada)
+        if (uses == 0) {
+            // Se for a última chave no stack, remover completamente
+            if (key.amount <= 1) {
+                player.inventory.setItemInMainHand(null)
+                player.sendMessage("§cA chave foi removida porque os usos chegaram a 0.")
+            } else {
+                // Reduzir a quantidade de chaves no stack
+                key.amount -= 1
+                player.sendMessage("§cA chave foi usada e removida do conjunto.")
+            }
+            return
+        }
+
+        // Atualizar a lore da chave com o novo número de usos
         if (key.hasItemMeta()) {
             val meta = key.itemMeta
             if (meta != null && meta.hasLore()) {
@@ -377,20 +371,29 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
                         }
                     }
                 }
-
-                // Remover o item se os usos chegarem a 0
-                if (uses == 0) {
-                    // Obter o jogador que está segurando a chave
-                    var player: Player? = null
-                    for (p in Bukkit.getOnlinePlayers()) {
-                        if (p.inventory.itemInMainHand == key) {
-                            player = p
-                            break
-                        }
-                    }
-                    player?.inventory?.setItemInMainHand(ItemStack(Material.AIR))
-                }
             }
+        }
+
+        // Se tiver mais de uma chave no stack, separar e atualizar apenas a usada
+        if (key.amount > 1) {
+            // Diminuir quantidade do stack original
+            key.amount -= 1
+
+            // Criar uma nova chave com os usos atualizados
+            val singleKey = key.clone()
+            singleKey.amount = 1
+
+            // Se o inventário estiver cheio, dropar a chave no local final do teleporte
+            if (player.inventory.firstEmpty() == -1) {
+                player.world.dropItemNaturally(targetLocation, singleKey)
+                player.sendMessage("§aSeu inventário está cheio. A chave foi dropada no seu destino.")
+            } else {
+                player.inventory.addItem(singleKey)
+                player.sendMessage("§aUsos restantes da chave: $uses")
+            }
+        } else {
+            // Se for apenas uma chave, ela já foi atualizada acima
+            player.sendMessage("§aUsos restantes da chave: $uses")
         }
     }
 
@@ -458,7 +461,7 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
         val player = event.player
         if (teleportingPlayers.containsKey(player)) {
             val initialLocation = teleportingPlayers[player]
-            if (initialLocation!!.distance(event.to) > 0.1) {
+            if (initialLocation!!.x != event.to.x || initialLocation.y != event.to.y || initialLocation.z != event.to.z) {
                 teleportingPlayers.remove(player)
                 player.sendMessage("§cTeleporte cancelado porque você se moveu.")
             }
