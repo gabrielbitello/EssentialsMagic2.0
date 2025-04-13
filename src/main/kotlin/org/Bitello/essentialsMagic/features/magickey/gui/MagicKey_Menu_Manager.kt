@@ -39,21 +39,29 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
 
         // Central Icon
         val homeIcon: ItemStack
-        val nexoItemId =
-            config.getString("magickey.menu.buttons.Home.material", "RED_BED")!!.uppercase(Locale.getDefault())
+        val iconId = config.getString("magickey.menu.buttons.Home.material", "RED_BED")!!
+            .uppercase(Locale.getDefault())
 
-        homeIcon = if (NexoItems.exists(nexoItemId)) {
-            NexoItems.itemFromId(nexoItemId)?.build() ?: createItemStack(
-                Material.valueOf(nexoItemId),
-                (config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize()),
-                colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
-            )
+        homeIcon = if (NexoItems.exists(iconId)) {
+            // Se o item existir no Nexo, obtenha-o do Nexo
+            NexoItems.itemFromId(iconId)?.build() ?: ItemStack(Material.RED_BED)
         } else {
-            createItemStack(
-                Material.valueOf(nexoItemId),
-                (config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize()),
-                colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
-            )
+            // Caso contrário, tente usar como material do Minecraft
+            try {
+                createItemStack(
+                    Material.valueOf(iconId),
+                    (config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize()),
+                    colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
+                )
+            } catch (e: IllegalArgumentException) {
+                // Se não for um material válido, use material padrão
+                plugin.logger.warning("Material inválido: $iconId, usando RED_BED como fallback")
+                createItemStack(
+                    Material.RED_BED,
+                    (config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize()),
+                    colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
+                )
+            }
         }
 
         // Adiciona metadado invisível
@@ -115,18 +123,27 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
     private fun addNetherStars(gui: Inventory, player: Player) {
         val netherStarIconId = config.getString("magickey.menu.buttons.keySlot.material", "NETHER_STAR")!!
             .uppercase(Locale.getDefault())
+
         val netherStar = if (NexoItems.exists(netherStarIconId)) {
-            NexoItems.itemFromId(netherStarIconId)?.build() ?: createItemStack(
-                Material.valueOf(netherStarIconId),
-                (config.getString("magickey.menu.buttons.keySlot.name", "§ePorta chave").colorize()),
-                colorizeList(config.getStringList("magickey.menu.buttons.keySlot.lore"))
-            )
+            // Se o item existir no Nexo, obtenha-o do Nexo
+            NexoItems.itemFromId(netherStarIconId)?.build() ?: ItemStack(Material.NETHER_STAR)
         } else {
-            createItemStack(
-                Material.valueOf(netherStarIconId),
-                (config.getString("magickey.menu.buttons.keySlot.name", "§ePorta chave").colorize()),
-                colorizeList(config.getStringList("magickey.menu.buttons.keySlot.lore"))
-            )
+            // Caso contrário, tente usar como material do Minecraft
+            try {
+                createItemStack(
+                    Material.valueOf(netherStarIconId),
+                    (config.getString("magickey.menu.buttons.keySlot.name", "§ePorta chave").colorize()),
+                    colorizeList(config.getStringList("magickey.menu.buttons.keySlot.lore"))
+                )
+            } catch (e: IllegalArgumentException) {
+                // Se não for um material válido, use material padrão
+                plugin.logger.warning("Material inválido: $netherStarIconId, usando NETHER_STAR como fallback")
+                createItemStack(
+                    Material.NETHER_STAR,
+                    (config.getString("magickey.menu.buttons.keySlot.name", "§ePorta chave").colorize()),
+                    colorizeList(config.getStringList("magickey.menu.buttons.keySlot.lore"))
+                )
+            }
         }
 
         val slots: MutableList<Int> = ArrayList()

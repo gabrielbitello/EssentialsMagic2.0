@@ -130,28 +130,32 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
             pendingPortals.remove(player)
             playerLocations.remove(player.uniqueId)
 
-            if (mfMySQL.verifyAndInsertPortal(
-                    player,
-                    player.uniqueId.toString(),
-                    portalName,
-                    player.name,
-                    "Um portal mágico criado por " + player.name,
-                    "Outros",
-                    "stone",
-                    location!!.world.name,
-                    location.x,
-                    location.y,
-                    location.z,
-                    1,
-                    "",
-                    0,
-                    itemId,
-                    player.location.yaw
-                )
-            ) {
-                player.sendMessage("§aPortal criado com sucesso!")
+            if (!mfMySQL.isPortalNameExists(portalName)) {
+                if (mfMySQL.verifyAndInsertPortal(
+                        player,
+                        player.uniqueId.toString(),
+                        portalName,
+                        player.name,
+                        "Um portal mágico criado por " + player.name,
+                        "Outros",
+                        "stone",
+                        location!!.world.name,
+                        location.x,
+                        location.y,
+                        location.z,
+                        1,
+                        "",
+                        0,
+                        itemId,
+                        player.location.yaw
+                    )
+                ) {
+                    player.sendMessage("§aPortal criado com sucesso!")
+                } else {
+                    player.sendMessage("§cVocê já possui o número máximo de portais.")
+                }
             } else {
-                player.sendMessage("§cVocê já possui o número máximo de portais.")
+                player.sendMessage("§cJá existe um portal com este nome. Por favor, escolha outro nome.")
             }
         }
     }

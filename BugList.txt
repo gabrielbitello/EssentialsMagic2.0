@@ -1,9 +1,6 @@
 Magicfire:
 - slotvip
-- Verificação se o nome já existe
 - Animação esta aplicando a animação do portal de origem no portal final
-- Bloquear crair fogo usando a mobilia de animação
 - Fazer verificar de alguam forma se o player tem permição de colocar blocos no local para permitir mover o fogo para o local com comando
 MagicKey:
-- Dispara o uso ao criar
-*- Esta consumindo o pack de chaves ao inves de só 1 ( e para remover a durabilidade ele separe o pack)
+- Se estiver olhando para um bloco ele dispara 2x
