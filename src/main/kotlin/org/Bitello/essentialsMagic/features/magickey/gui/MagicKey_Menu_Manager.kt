@@ -40,21 +40,26 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
         // Central Icon
         val homeIcon: ItemStack
         val iconId = config.getString("magickey.menu.buttons.Home.material", "RED_BED")!!
-            .uppercase(Locale.getDefault())
 
         homeIcon = if (NexoItems.exists(iconId)) {
-            // Se o item existir no Nexo, obtenha-o do Nexo
-            NexoItems.itemFromId(iconId)?.build() ?: ItemStack(Material.RED_BED)
+            plugin.logger.info("Nexo item detected: $iconId") // Log para depuração
+            val nexoItem = NexoItems.itemFromId(iconId)?.build() ?: ItemStack(Material.RED_BED)
+            val meta = nexoItem.itemMeta
+            if (meta != null) {
+                meta.setDisplayName(config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize())
+                meta.lore = colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
+                nexoItem.setItemMeta(meta)
+            }
+            nexoItem
         } else {
-            // Caso contrário, tente usar como material do Minecraft
+            plugin.logger.info("Fallback to Minecraft material: $iconId") // Log para depuração
             try {
                 createItemStack(
-                    Material.valueOf(iconId),
+                    Material.valueOf(iconId.uppercase(Locale.getDefault())), // Corrigido para usar uppercase apenas aqui
                     (config.getString("magickey.menu.buttons.Home.name", "§aHome").colorize()),
                     colorizeList(config.getStringList("magickey.menu.buttons.Home.lore"))
                 )
             } catch (e: IllegalArgumentException) {
-                // Se não for um material válido, use material padrão
                 plugin.logger.warning("Material inválido: $iconId, usando RED_BED como fallback")
                 createItemStack(
                     Material.RED_BED,
@@ -144,6 +149,14 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
                     colorizeList(config.getStringList("magickey.menu.buttons.keySlot.lore"))
                 )
             }
+        }
+
+        // Adiciona o efeito de encantamento visual sem exibir na lore
+        val meta = netherStar.itemMeta
+        if (meta != null) {
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS) // Oculta o encantamento na lore
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.LUCK_OF_THE_SEA, 1, true)
+            netherStar.setItemMeta(meta)
         }
 
         val slots: MutableList<Int> = ArrayList()
@@ -239,11 +252,21 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
                     if (meta.hasCustomModelData()) {
                         nexoMeta.setCustomModelData(meta.customModelData)
                     }
+                    // Adiciona o encantamento "Sorte do Mar I"
+                    nexoMeta.addEnchant(org.bukkit.enchantments.Enchantment.LUCK_OF_THE_SEA, 1, true)
+                    nexoMeta.addItemFlags(ItemFlag.HIDE_ENCHANTS) // Oculta o encantamento na lore
                     itemToGive.setItemMeta(nexoMeta)
                 }
 
-                player.inventory.addItem(itemToGive)
-                player.sendMessage("§aChave de portal removida e adicionada ao seu inventário.")
+                // Verifica se o inventário está cheio
+                val leftover = player.inventory.addItem(itemToGive)
+                if (leftover.isNotEmpty()) {
+                    // Dropa o item no chão se o inventário estiver cheio
+                    player.world.dropItemNaturally(player.location, itemToGive)
+                    player.sendMessage("§eSeu inventário está cheio. A chave foi dropada no chão.")
+                } else {
+                    player.sendMessage("§aChave de portal removida e adicionada ao seu inventário.")
+                }
                 player.closeInventory() // Fecha o menu
             } else {
                 plugin.logger.info("Failed to delete portal key from database.")
@@ -283,30 +306,6 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
         }
     }
 
-    //private int findKeySlotInDatabase(Player player, ItemStack key) {
-    //    String keyData = database.loadPortalKey(player.getUniqueId());
-    //    plugin.getLogger().info("Loaded key data from database: " + keyData);
-    //    if (keyData != null) {
-    //        for (String keyEntry : keyData.split("/")) {
-    //            String[] keyParts = keyEntry.split(":");
-    //           if (keyParts.length == 6) {
-    //                String keyName = keyParts[0];
-    //                String creator = keyParts[1];
-    //                String location = keyParts[2];
-    //                int uses = Integer.parseInt(keyParts[3]);
-    //                String material = keyParts[4];
-    //                int slot = Integer.parseInt(keyParts[5]);
-    //                plugin.getLogger().info("Checking key entry: " + keyEntry);
-    //                if (key.getItemMeta().getDisplayName().equals(keyName) &&
-    //                        key.getType().toString().equals(material)) {
-    //                    plugin.getLogger().info("Matching key found in database at slot: " + slot);
-    //                    return slot;
-    //                }
-    //            }
-    //        }
-    //    }
-    //    return -1;
-    //}
     private fun handleNetherStarClick(player: Player, slot: Int) {
         val handItem = player.inventory.itemInMainHand
         if (handItem != null && handItem.type != Material.AIR) {
@@ -321,9 +320,25 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
     private fun handlePortalKeyClick(player: Player, key: ItemStack, slot: Int) {
         if (canTeleport(player)) {
             val location = extractLocationFromLore(key.itemMeta.lore!!)
-            if (!location.isEmpty()) {
+            if (location.isNotEmpty()) {
                 teleportPlayer(player, location)
                 decreaseKeyUses(player, key, slot)
+
+                // Reconstrói o item Nexo após o uso
+                val nexoItemId = NexoItems.idFromItem(key)
+                if (nexoItemId != null && NexoItems.exists(nexoItemId)) {
+                    val rebuiltItem = NexoItems.itemFromId(nexoItemId)?.build()
+                    if (rebuiltItem != null) {
+                        val meta = rebuiltItem.itemMeta
+                        if (meta != null) {
+                            meta.lore = key.itemMeta.lore // Preserva a lore
+                            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS) // Oculta o encantamento na lore
+                            meta.addEnchant(org.bukkit.enchantments.Enchantment.LUCK_OF_THE_SEA, 1, true)
+                            rebuiltItem.setItemMeta(meta)
+                        }
+                        key.itemMeta = rebuiltItem.itemMeta
+                    }
+                }
             } else {
                 player.sendMessage("§cLocalização não encontrada na chave.")
             }
@@ -375,23 +390,17 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
             .findFirst()
             .orElse("Usos: {uses}")
 
-        plugin.logger.info("Uses pattern: $usesPattern")
-
         for (line in lore) {
             var line = line
             line = (line).colorize()
-            plugin.logger.info("Processing lore line: $line")
             val patternWithoutPlaceholder: String = (usesPattern.replace("{uses}", "").colorize())
             if (line.contains(patternWithoutPlaceholder)) {
                 val usesStr = line.replace(patternWithoutPlaceholder, "").trim { it <= ' ' }
-                plugin.logger.info("Extracted uses string: $usesStr")
                 if (usesStr.equals("ilimitado", ignoreCase = true)) {
-                    plugin.logger.info("Extracted uses: Ilimitado")
-                    return -1 // Considera ilimitado se estiver escrito "ilimitado"
+                   return -1 // Considera ilimitado se estiver escrito "ilimitado"
                 }
                 try {
                     val uses = usesStr.toInt()
-                    plugin.logger.info("Extracted uses: $uses")
                     return uses
                 } catch (e: NumberFormatException) {
                     plugin.logger.info("Failed to parse uses, defaulting to 1")
@@ -428,7 +437,7 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
         val creator = extractCreatorFromLore(key.itemMeta.lore!!)
         val location = extractLocationFromLore(key.itemMeta.lore!!)
         var uses = extractUsesFromLore(key.itemMeta.lore!!)
-        val material = key.type.toString()
+        val material = NexoItems.idFromItem(key) ?: key.type.toString() // Corrigido para usar o ID do Nexo
 
         if (uses > 0) {
             uses--
@@ -480,12 +489,8 @@ class MagicKey_Menu_Manager(private val plugin: EssentialsMagic) : Listener {
         val location = extractLocationFromLore(key.itemMeta.lore!!)
         val uses = extractUsesFromLore(key.itemMeta.lore!!)
 
-        // Tenta obter o ID do Nexo primeiro
-        val material = if (NexoItems.exists(key)) {
-            NexoItems.idFromItem(key)
-        } else {
-            key.type.toString()
-        }
+        // Corrigido para salvar o ID do Nexo corretamente
+        val material = NexoItems.idFromItem(key) ?: key.type.toString()
 
         val keyData = String.format("%s:%s:%s:%d:%s:%d", keyName, creator, location, uses, material, slot)
 

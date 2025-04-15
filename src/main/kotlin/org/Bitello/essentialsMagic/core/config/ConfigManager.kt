@@ -1,15 +1,26 @@
 package org.Bitello.essentialsMagic.core.config
 
 import org.Bitello.essentialsMagic.EssentialsMagic
+import org.bukkit.configuration.ConfigurationSection
 import org.bukkit.configuration.file.FileConfiguration
+import org.bukkit.configuration.file.YamlConfiguration
+import java.io.File
 
 class ConfigManager(private val plugin: EssentialsMagic) {
 
     private lateinit var config: FileConfiguration
+    private lateinit var craftsConfig: YamlConfiguration
 
     fun loadConfigs() {
         plugin.saveDefaultConfig()
         config = plugin.config
+
+        // Carregar configuração de crafts
+        val craftsFile = File(plugin.dataFolder, "crafts.yml")
+        if (!craftsFile.exists()) {
+            plugin.saveResource("crafts.yml", false)
+        }
+        craftsConfig = YamlConfiguration.loadConfiguration(craftsFile)
     }
 
     fun getConfig(): FileConfiguration = config
@@ -77,5 +88,104 @@ class ConfigManager(private val plugin: EssentialsMagic) {
     fun getPsgodMessages(): Map<String, String> {
         val messagesSection = config.getConfigurationSection("psgod.mensages") ?: return emptyMap()
         return messagesSection.getKeys(false).associateWith { messagesSection.getString(it).orEmpty() }
+    }
+
+    // Tear - Novos métodos
+    fun isTearEnabled(): Boolean = config.getBoolean("tear.enabled", true)
+
+    fun getTearId(): String? = config.getString("tear.id")
+
+    fun getTearMenuTitle(): String = config.getString("tear.menu.title", "§8Tear de Crafting") ?: "§8Tear de Crafting"
+
+    fun getTearMenuSize(): Int = config.getInt("tear.menu.size", 36)
+
+    // Métodos para gerenciar crafts
+    fun getAllCraftIds(): List<String> {
+        val craftsSection = craftsConfig.getConfigurationSection("crafts") ?: return emptyList()
+        return craftsSection.getKeys(false).toList()
+    }
+
+    fun craftExists(craftId: String): Boolean {
+        return craftsConfig.contains("crafts.$craftId")
+    }
+
+    fun getCraftTime(craftId: String): Int {
+        return craftsConfig.getInt("crafts.$craftId.time", 60)
+    }
+
+    fun getCraftResult(craftId: String): String? {
+        return craftsConfig.getString("crafts.$craftId.result")
+    }
+
+    fun getCraftMaterials(craftId: String): Map<String, Int> {
+        val result = mutableMapOf<String, Int>()
+
+        // Obter os materiais
+        val materialsSection = craftsConfig.getConfigurationSection("crafts.$craftId.materials") ?: return emptyMap()
+        val quantitiesSection = craftsConfig.getConfigurationSection("crafts.$craftId.quantities") ?: return emptyMap()
+
+        // Processar item central (obrigatório)
+        val centralItem = materialsSection.getString("central")
+        if (centralItem != null) {
+            val quantity = quantitiesSection.getInt(centralItem, 1)
+            result[centralItem] = quantity
+        }
+
+        // Processar item superior (opcional)
+        val superiorItem = materialsSection.getString("superior")
+        if (superiorItem != null) {
+            val quantity = quantitiesSection.getInt(superiorItem, 1)
+            result[superiorItem] = quantity
+        }
+
+        // Processar item inferior (opcional)
+        val inferiorItem = materialsSection.getString("inferior")
+        if (inferiorItem != null) {
+            val quantity = quantitiesSection.getInt(inferiorItem, 1)
+            result[inferiorItem] = quantity
+        }
+
+        return result
+    }
+
+    fun findCraftId(centralItemId: String?, superiorItemId: String?, inferiorItemId: String?): String? {
+        if (centralItemId == null) return null
+
+        val craftsSection = craftsConfig.getConfigurationSection("crafts") ?: return null
+
+        for (craftId in craftsSection.getKeys(false)) {
+            val materialsSection = craftsConfig.getConfigurationSection("crafts.$craftId.materials") ?: continue
+
+            val centralMatch = materialsSection.getString("central") == centralItemId
+
+            // Verificar item superior
+            val superiorMatch = if (superiorItemId == null) {
+                materialsSection.getString("superior") == null
+            } else {
+                materialsSection.getString("superior") == superiorItemId
+            }
+
+            // Verificar item inferior
+            val inferiorMatch = if (inferiorItemId == null) {
+                materialsSection.getString("inferior") == null
+            } else {
+                materialsSection.getString("inferior") == inferiorItemId
+            }
+
+            if (centralMatch && superiorMatch && inferiorMatch) {
+                return craftId
+            }
+        }
+
+        return null
+    }
+
+    fun getTearMessages(): Map<String, String> {
+        val messagesSection = config.getConfigurationSection("tear.messages") ?: return emptyMap()
+        return messagesSection.getKeys(false).associateWith { messagesSection.getString(it).orEmpty() }
+    }
+
+    fun getTearMessage(key: String, default: String): String {
+        return config.getString("tear.messages.$key", default) ?: default
     }
 }

@@ -4,3 +4,6 @@ Magicfire:
 - Fazer verificar de alguam forma se o player tem permição de colocar blocos no local para permitir mover o fogo para o local com comando
 MagicKey:
 - Se estiver olhando para um bloco ele dispara 2x
+MagicTear:
+- Não está permitindo colocar os itens no menu
+- NÃO FOI TESTADO POR COMPLETO

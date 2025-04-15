@@ -119,3 +119,75 @@ psgod:
     admin2: "pedido de &c{player} &7f{order}"
     region: "&7Voce precisa estar em uma regiao sagrada para realizar um pedido"
     not_permission: "&7Voce nao tem permissao para realizar um pedido"
+
+
+
+# Configuração do sistema de Tear
+tear:
+  enabled: true
+  # ID do item do tear no NexoItems
+  id: "magic_tear"
+
+# Definições de crafts
+crafts:
+  # Craft de Tecido Mágico
+  tecido_magico:
+    # Tempo em segundos para completar o craft
+    time: 60
+    # Item resultante
+    result: "tecido_magico"
+    # Materiais necessários (central, superior, inferior)
+    materials:
+      central: "linha_encantada"
+      superior: "essencia_magica"
+      inferior: null
+    # Quantidades de cada material
+    quantities:
+      linha_encantada: 2
+      essencia_magica: 1
+
+  # Craft de Manto Élfico
+  manto_elfico:
+    time: 180
+    result: "manto_elfico"
+    materials:
+      central: "tecido_magico"
+      superior: "pena_de_fenix"
+      inferior: "escama_de_dragao"
+    quantities:
+      tecido_magico: 3
+      pena_de_fenix: 1
+      escama_de_dragao: 1
+
+  # Craft de Luvas Arcanas
+  luvas_arcanas:
+    time: 120
+    result: "luvas_arcanas"
+    materials:
+      central: "tecido_magico"
+      superior: "cristal_arcano"
+      inferior: null
+    quantities:
+      tecido_magico: 2
+      cristal_arcano: 1
+
+  # Craft de Botas Élficas
+  botas_elficas:
+    time: 150
+    result: "botas_elficas"
+    materials:
+      central: "tecido_magico"
+      superior: null
+      inferior: "couro_de_minotauro"
+    quantities:
+      tecido_magico: 2
+      couro_de_minotauro: 1
+
+# Mensagens do sistema
+messages:
+  craft_started: "&aVocê iniciou o craft de %item%. Tempo estimado: %time%."
+  craft_completed: "&aO craft de %item% foi concluído!"
+  craft_interrupted: "&cO craft foi interrompido! Os materiais foram devolvidos."
+  invalid_recipe: "&cEsta combinação de itens não é válida."
+  insufficient_materials: "&cVocê não tem materiais suficientes para este craft."
+  tear_broken: "&cO tear foi quebrado e os materiais do craft foram dropados."

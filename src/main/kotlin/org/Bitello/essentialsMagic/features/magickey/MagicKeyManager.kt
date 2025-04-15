@@ -47,7 +47,7 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
         MagicKey_Commands_Manager(plugin, plugin.configManager, mkMySQL)
 
         // Registra o spawn
-        MagicKey_Spawn_Manager(plugin, plugin.configManager)
+        MagicKey_Spawn_Manager(plugin, plugin.configManager).initialize()
     }
 
     @EventHandler
@@ -65,17 +65,11 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
         // Verificar se o item é uma chave válida
         if (isValidKey(item)) {
             // IMPORTANTE: Impedir que o evento seja processado múltiplas vezes
-            // Cancelar o evento independentemente do tipo de interação
             event.setCancelled(true)
 
-            // Criação da chave (botão esquerdo + shift)
-            if (player.isSneaking && (event.action == Action.LEFT_CLICK_AIR || event.action == Action.LEFT_CLICK_BLOCK)) {
-                handleKeyCreation(player, item)
-                return
-            }
-
-            // Teleportar (botão direito sem shift)
-            if (!player.isSneaking && (event.action == Action.RIGHT_CLICK_AIR || event.action == Action.RIGHT_CLICK_BLOCK)) {
+            // SHIFT + Clique (esquerdo ou direito)
+            if (player.isSneaking && (event.action == Action.LEFT_CLICK_AIR || event.action == Action.LEFT_CLICK_BLOCK ||
+                                       event.action == Action.RIGHT_CLICK_AIR || event.action == Action.RIGHT_CLICK_BLOCK)) {
                 val meta = item.itemMeta
                 if (meta != null && meta.hasLore()) {
                     val lore = meta.lore
@@ -93,8 +87,10 @@ class MagicKeyManager(private val plugin: EssentialsMagic) : Listener {
                     if (hasCoordinates) {
                         handleTeleport(player, item)
                     } else {
-                        player.sendMessage("§eEsta chave não possui coordenadas. Pressione SHIFT e clique com o botão esquerdo para configurá-la.")
+                        handleKeyCreation(player, item)
                     }
+                } else {
+                    handleKeyCreation(player, item)
                 }
             }
         }

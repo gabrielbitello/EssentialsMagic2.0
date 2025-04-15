@@ -12,6 +12,7 @@ import org.Bitello.essentialsMagic.core.database.DataBaseManager
 
 import org.Bitello.essentialsMagic.features.magicfire.MagicFireManager
 import org.Bitello.essentialsMagic.features.magickey.MagicKeyManager
+import org.Bitello.essentialsMagic.features.magictear.MagicTearManager
 
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
@@ -39,6 +40,8 @@ class EssentialsMagic : JavaPlugin() {
     lateinit var magicfireManager: MagicFireManager
         private set
     lateinit var magickeyManager: MagicKeyManager
+        private set
+    lateinit var magictearManager: MagicTearManager
         private set
 
     override fun onLoad() {
@@ -70,6 +73,10 @@ class EssentialsMagic : JavaPlugin() {
         // MagicKey initialization
         magickeyManager = MagicKeyManager(this)
         magickeyManager.initialize()
+
+        // MagicTear initialization
+        magictearManager = MagicTearManager(this)
+        magictearManager.initialize()
 
         // LuckPerms initialization
         try {
