@@ -96,6 +96,8 @@ class EssentialsMagic : JavaPlugin() {
         instance = this
         DataBaseManager(this).closeConnection()
 
+        magictearManager.onDisable()
+
 
         val message = LegacyComponentSerializer.legacySection().serialize(
             Component.text("[EssentialsMagic] plugin has been disabled.").color(NamedTextColor.RED))

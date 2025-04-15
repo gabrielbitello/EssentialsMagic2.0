@@ -56,7 +56,6 @@ class MagicFireManager(private val plugin: EssentialsMagic) : Listener {
 
     @EventHandler
     fun onFurniturePlace(event: NexoFurniturePlaceEvent) {
-        Bukkit.getConsoleSender().sendMessage("[EssentialsMagic] Furniture placed: ${event.mechanic.itemID}")
         if (!plugin.configManager.isMagicFireEnabled()) return
 
         val portalIds = plugin.configManager.getMagicFirePortalIds()

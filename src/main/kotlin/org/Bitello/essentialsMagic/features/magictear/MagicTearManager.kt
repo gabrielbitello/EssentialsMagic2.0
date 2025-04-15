@@ -38,11 +38,9 @@ class MagicTearManager(private val plugin: EssentialsMagic) : Listener {
     }
 
     fun initialize() {
-        val message: Component = Component.text("[EssentialsMagic] Tear Crafting System has been enabled.")
-            .color(NamedTextColor.DARK_PURPLE)
-        Bukkit.getConsoleSender().sendMessage(
-            LegacyComponentSerializer.legacySection().serialize(message)
-        )
+        val message = LegacyComponentSerializer.legacySection().serialize(
+            Component.text("[EssentialsMagic] Tear Crafting System has been enabled.").color(NamedTextColor.DARK_PURPLE))
+        Bukkit.getConsoleSender().sendMessage(message)
 
         // Carregar crafts em andamento
         loadActiveCrafts()
@@ -113,18 +111,31 @@ class MagicTearManager(private val plugin: EssentialsMagic) : Listener {
             val y = craftSection.getDouble("y")
             val z = craftSection.getDouble("z")
 
-            val world = Bukkit.getWorld(worldName) ?: continue
+            val world = Bukkit.getWorld(worldName)
+            if (world == null) {
+                plugin.logger.warning("Mundo '$worldName' não encontrado ao carregar o craft com a chave '$key'.")
+                continue
+            }
 
             val location = Location(world, x, y, z)
-            val craftId = craftSection.getString("craftId") ?: continue
-            val resultItemId = craftSection.getString("resultItem") ?: continue
-            val quantity = craftSection.getInt("quantity")
-            val remainingTime = craftSection.getInt("remainingTime")
-            val totalTime = craftSection.getInt("totalTime")
+            val craftId = craftSection.getString("craftId")
+            val resultItemId = craftSection.getString("resultItem")
+            val quantity = craftSection.getInt("quantity", -1)
+            val remainingTime = craftSection.getInt("remainingTime", -1)
+            val totalTime = craftSection.getInt("totalTime", -1)
 
+            if (craftId == null || resultItemId == null || quantity <= 0 || remainingTime < 0 || totalTime <= 0) {
+                plugin.logger.warning("Dados inválidos para o craft com a chave '$key'. Ignorando...")
+                continue
+            }
+
+            // Criar o craft ativo
             val craft = ActiveCraft(craftId, resultItemId, quantity, remainingTime, totalTime)
+
+            // Adicionar ao mapa de crafts ativos
             activeCrafts[location] = craft
         }
+
     }
 
     private fun checkActiveCrafts() {
@@ -140,16 +151,6 @@ class MagicTearManager(private val plugin: EssentialsMagic) : Listener {
                 // O craft foi concluído
                 craft.isCompleted = true
             }
-        }
-    }
-
-    @EventHandler
-    fun onFurniturePlace(event: NexoFurniturePlaceEvent) {
-        if (!isTearEnabled) return
-
-        val itemId = event.mechanic.itemID
-        if (configManager.getTearId() == itemId) {
-            Bukkit.getConsoleSender().sendMessage("[EssentialsMagic] Tear colocado: $itemId")
         }
     }
 
@@ -225,7 +226,8 @@ class MagicTearManager(private val plugin: EssentialsMagic) : Listener {
     }
 
     fun getActiveCraft(location: Location): ActiveCraft? {
-        return activeCrafts[location]
+        val normalizedLocation = normalizeLocation(location)
+        return activeCrafts[normalizedLocation]
     }
 
     fun isCraftComplete(location: Location): Boolean {
@@ -235,6 +237,15 @@ class MagicTearManager(private val plugin: EssentialsMagic) : Listener {
 
     fun removeCraft(location: Location) {
         activeCrafts.remove(location)
+    }
+
+    private fun normalizeLocation(location: Location): Location {
+        return Location(
+            location.world,
+            location.blockX + 0.5,
+            location.blockY + 0.5,
+            location.blockZ + 0.5
+        )
     }
 
     private val isTearEnabled: Boolean

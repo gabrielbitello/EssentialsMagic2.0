@@ -126,14 +126,16 @@ class MagicTear_Menu_Manager(
             return
         }
 
+        // Cancelar o evento por padrão
         event.isCancelled = true
 
         val slot = event.slot
-        val currentItem = event.currentItem
-        val clickedInventory = event.clickedInventory
+        val clickedItem = event.currentItem
+        val clickedInventory = event.clickedInventory ?: return
+        val cursor = player.itemOnCursor
 
         // Delegar a lógica para o método handleInventoryClick
-        handleInventoryClick(player, slot, currentItem, clickedInventory!!)
+        handleInventoryClick(player, slot, clickedItem, clickedInventory, cursor, event)
     }
 
     @EventHandler
@@ -167,7 +169,8 @@ class MagicTear_Menu_Manager(
                     Material.BARRIER
                 )
             ) {
-                val leftover = player.inventory.addItem(item)
+                val itemClone = item.clone() // Clonar o ItemStack para evitar alterações no original
+                val leftover = player.inventory.addItem(itemClone)
 
                 for (leftItem in leftover.values) {
                     player.world.dropItemNaturally(player.location, leftItem)
@@ -256,7 +259,14 @@ class MagicTear_Menu_Manager(
         }
     }
 
-    fun handleInventoryClick(player: Player, slot: Int, clickedItem: ItemStack?, inventory: Inventory) {
+    private fun handleInventoryClick(
+        player: Player,
+        slot: Int,
+        clickedItem: ItemStack?,
+        inventory: Inventory,
+        cursor: ItemStack,
+        event: InventoryClickEvent
+    ) {
         val tearLocation = playerMenuLocations[player.uniqueId] ?: return
 
         val activeCraft = magicTearManager.getActiveCraft(tearLocation)
@@ -319,39 +329,67 @@ class MagicTear_Menu_Manager(
 
         // Lógica para os slots de crafting
         if (slot in listOf(SLOT_ITEM_CENTRAL, SLOT_ITEM_SUPERIOR, SLOT_ITEM_INFERIOR)) {
-            val cursorItem = player.itemOnCursor
+            // Se o jogador está tentando colocar um item no slot (tem item no cursor)
+            if (!cursor.type.isAir) {
+                // Se o slot está vazio ou tem vidro decorativo
+                if (clickedItem == null || clickedItem.type.isAir ||
+                    clickedItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
 
-            // Se o jogador está tentando colocar um item no slot
-            if (cursorItem != null && !cursorItem.type.isAir) {
-                // Remover o vidro decorativo
-                if (clickedItem != null && clickedItem.type in listOf(
-                        Material.RED_STAINED_GLASS_PANE,
-                        Material.YELLOW_STAINED_GLASS_PANE
-                    )
-                ) {
-                    inventory.setItem(slot, null)
-                }
-                // Permitir a colocação do item
-                return
-            }
+                    // Colocar o item do cursor no slot
+                    val itemToPlace = cursor.clone()
+                    inventory.setItem(slot, itemToPlace)
 
-            // Se o slot ficou vazio, recolocar o vidro decorativo
-            if (clickedItem == null || clickedItem.type.isAir) {
-                val glassPane = when (slot) {
-                    SLOT_ITEM_CENTRAL -> ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
-                        itemMeta = itemMeta?.apply { setDisplayName("§cItem Central §7(Obrigatório)") }
-                    }
-                    else -> ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
-                        itemMeta = itemMeta?.apply { setDisplayName("§eItem §7(Opcional)") }
-                    }
+                    // Limpar o cursor do jogador
+                    player.setItemOnCursor(null)
+
+                    // Atualizar o inventário do jogador
+                    Bukkit.getScheduler().runTask(plugin, Runnable {
+                        player.updateInventory()
+                    })
                 }
-                inventory.setItem(slot, glassPane)
+                // Se o slot já tem um item (que não é vidro decorativo), trocar os itens
+                else if (clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+                    val tempItem = clickedItem.clone()
+                    inventory.setItem(slot, cursor.clone())
+                    player.setItemOnCursor(tempItem)
+
+                    // Atualizar o inventário do jogador
+                    Bukkit.getScheduler().runTask(plugin, Runnable {
+                        player.updateInventory()
+                    })
+                }
             }
-            return
+            // Se o jogador está tentando pegar um item do slot (cursor vazio)
+            else if (cursor.type.isAir && clickedItem != null &&
+                clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+
+                // Pegar o item do slot
+                player.setItemOnCursor(clickedItem.clone())
+
+                // Limpar o slot
+                inventory.setItem(slot, null)
+
+                // Colocar o vidro decorativo de volta
+                Bukkit.getScheduler().runTask(plugin, Runnable {
+                    // Se o slot ainda estiver vazio (não foi modificado por outro evento)
+                    if (inventory.getItem(slot) == null || inventory.getItem(slot)?.type?.isAir == true) {
+                        val glassPane = when (slot) {
+                            SLOT_ITEM_CENTRAL -> ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
+                                itemMeta = itemMeta?.apply { setDisplayName("§cItem Central §7(Obrigatório)") }
+                            }
+                            else -> ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
+                                itemMeta = itemMeta?.apply { setDisplayName("§eItem §7(Opcional)") }
+                            }
+                        }
+                        inventory.setItem(slot, glassPane)
+                    }
+                    player.updateInventory()
+                })
+            }
         }
 
         // Se clicou no botão de confirmar
-        if (slot == SLOT_CONFIRMAR) {
+        else if (slot == SLOT_CONFIRMAR) {
             // Verificar se há itens nos slots
             val centralItem = inventory.getItem(SLOT_ITEM_CENTRAL)
             val superiorItem = inventory.getItem(SLOT_ITEM_SUPERIOR)
@@ -435,15 +473,31 @@ class MagicTear_Menu_Manager(
     }
 
     private fun checkValidCraft(centralItem: ItemStack, superiorItem: ItemStack?, inferiorItem: ItemStack?): String? {
-        // Obter os IDs dos itens
-        val centralId = idFromItem(centralItem)
-        val superiorId =
-            if (superiorItem != null && superiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) idFromItem(superiorItem) else null
-        val inferiorId =
-            if (inferiorItem != null && inferiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) idFromItem(inferiorItem) else null
+        // Verificar se o item central é um painel de vidro decorativo
+        if (centralItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+            return null
+        }
+
+        // Verificar se o item superior é um painel de vidro decorativo
+        if (superiorItem != null && superiorItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+            return null
+        }
+
+        // Tratar o item inferior como null se for um painel de vidro decorativo
+        val validInferiorItem = if (inferiorItem != null && inferiorItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+            null
+        } else {
+            inferiorItem
+        }
+
+        // Obter os IDs dos itens ou usar o tipo como fallback
+        val centralId = idFromItem(centralItem) ?: centralItem.type.name
+        val superiorId = superiorItem?.let { idFromItem(it) ?: it.type.name }
+        val inferiorId = validInferiorItem?.let { idFromItem(it) ?: it.type.name }
 
         // Verificar se a combinação existe nos crafts
-        return configManager.findCraftId(centralId, superiorId, inferiorId)
+        val craftId = configManager.findCraftId(centralId, superiorId, inferiorId)
+        return craftId
     }
 
     private fun calculateMaxCraftQuantity(
@@ -456,32 +510,41 @@ class MagicTear_Menu_Manager(
 
         var maxQuantity = Int.MAX_VALUE
 
-        // Verificar o item central
-        val centralId = idFromItem(centralItem)
-        if (centralId != null && materials.containsKey(centralId)) {
-            val requiredAmount = materials[centralId]!!
-            maxQuantity = min(maxQuantity.toDouble(), (centralItem.amount / requiredAmount).toDouble()).toInt()
-        }
+        for ((materialId, requiredAmount) in materials) {
+            var availableAmount = 0
 
-        // Verificar o item superior
-        if (superiorItem != null && superiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) {
-            val superiorId = idFromItem(superiorItem)
-            if (superiorId != null && materials.containsKey(superiorId)) {
-                val requiredAmount = materials[superiorId]!!
-                maxQuantity = min(maxQuantity.toDouble(), (superiorItem.amount / requiredAmount).toDouble()).toInt()
+            // Verificar o item central
+            val centralId = idFromItem(centralItem) ?: centralItem.type.name
+            if (centralId == materialId) {
+                availableAmount += centralItem.amount
+            }
+
+            // Verificar o item superior
+            if (superiorItem != null) {
+                val superiorId = idFromItem(superiorItem) ?: superiorItem.type.name
+                if (superiorId == materialId) {
+                    availableAmount += superiorItem.amount
+                }
+            }
+
+            // Verificar o item inferior
+            if (inferiorItem != null) {
+                val inferiorId = idFromItem(inferiorItem) ?: inferiorItem.type.name
+                if (inferiorId == materialId) {
+                    availableAmount += inferiorItem.amount
+                }
+            }
+
+            // Calcular a quantidade máxima para este material
+            if (requiredAmount > 0) {
+                val maxForThisMaterial = availableAmount / requiredAmount
+                plugin.logger.info("Debug - Quantidade máxima para $materialId: $maxForThisMaterial")
+                maxQuantity = min(maxQuantity, maxForThisMaterial)
             }
         }
 
-        // Verificar o item inferior
-        if (inferiorItem != null && inferiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) {
-            val inferiorId = idFromItem(inferiorItem)
-            if (inferiorId != null && materials.containsKey(inferiorId)) {
-                val requiredAmount = materials[inferiorId]!!
-                maxQuantity = min(maxQuantity.toDouble(), (inferiorItem.amount / requiredAmount).toDouble()).toInt()
-            }
-        }
-
-        return maxQuantity
+        val result = if (maxQuantity == Int.MAX_VALUE) 0 else maxQuantity
+        return result
     }
 
     private fun consumeCraftItems(inventory: Inventory, craftId: String, quantity: Int) {
@@ -489,12 +552,12 @@ class MagicTear_Menu_Manager(
 
         // Consumir o item central
         val centralItem = inventory.getItem(SLOT_ITEM_CENTRAL)
-        if (centralItem != null) {
-            val centralId = idFromItem(centralItem)
-            if (centralId != null && materials.containsKey(centralId)) {
-                val requiredAmount = materials[centralId]!! * quantity
-                if (centralItem.amount > requiredAmount) {
-                    centralItem.amount = centralItem.amount - requiredAmount
+        centralItem?.let {
+            val centralId = idFromItem(it) ?: it.type.name
+            materials[centralId]?.let { requiredAmount ->
+                val totalRequired = requiredAmount * quantity
+                if (it.amount > totalRequired) {
+                    it.amount -= totalRequired
                 } else {
                     inventory.setItem(SLOT_ITEM_CENTRAL, null)
                 }
@@ -503,12 +566,12 @@ class MagicTear_Menu_Manager(
 
         // Consumir o item superior
         val superiorItem = inventory.getItem(SLOT_ITEM_SUPERIOR)
-        if (superiorItem != null && superiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) {
-            val superiorId = idFromItem(superiorItem)
-            if (materials.containsKey(superiorId)) {
-                val requiredAmount = materials[superiorId]!! * quantity
-                if (superiorItem.amount > requiredAmount) {
-                    superiorItem.amount = superiorItem.amount - requiredAmount
+        superiorItem?.let {
+            val superiorId = idFromItem(it) ?: it.type.name
+            materials[superiorId]?.let { requiredAmount ->
+                val totalRequired = requiredAmount * quantity
+                if (it.amount > totalRequired) {
+                    it.amount -= totalRequired
                 } else {
                     inventory.setItem(SLOT_ITEM_SUPERIOR, null)
                 }
@@ -517,12 +580,12 @@ class MagicTear_Menu_Manager(
 
         // Consumir o item inferior
         val inferiorItem = inventory.getItem(SLOT_ITEM_INFERIOR)
-        if (inferiorItem != null && inferiorItem.type != Material.YELLOW_STAINED_GLASS_PANE) {
-            val inferiorId = idFromItem(inferiorItem)
-            if (materials.containsKey(inferiorId)) {
-                val requiredAmount = materials[inferiorId]!! * quantity
-                if (inferiorItem.amount > requiredAmount) {
-                    inferiorItem.amount = inferiorItem.amount - requiredAmount
+        inferiorItem?.let {
+            val inferiorId = idFromItem(it) ?: it.type.name
+            materials[inferiorId]?.let { requiredAmount ->
+                val totalRequired = requiredAmount * quantity
+                if (it.amount > totalRequired) {
+                    it.amount -= totalRequired
                 } else {
                     inventory.setItem(SLOT_ITEM_INFERIOR, null)
                 }
