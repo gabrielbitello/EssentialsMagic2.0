@@ -23,9 +23,11 @@ import kotlin.math.min
 abstract class CraftGuiManager(
     protected val plugin: EssentialsMagic,
     protected val craftingManager: CraftManager,
-    private val systemName: String
+    private val systemName: String,
+    private val ymlname: String
 ) : Listener {
     protected val configManager = plugin.configManager
+    protected val craftManager = plugin.craftManager.CraftFileManager(ymlname)
     protected val playerMenuLocations: MutableMap<UUID, Location> = ConcurrentHashMap()
     protected val openMenus: MutableMap<UUID, Inventory> = ConcurrentHashMap()
 

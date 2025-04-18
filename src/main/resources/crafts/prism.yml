@@ -1,0 +1,17 @@
+# Definições de crafts
+crafts:
+  # Craft de Tecido Mágico
+  ferium:
+    # Tempo em segundos para completar o craft
+    time: 30
+    # Item resultante
+    result: "ferium"
+    # Materiais necessários (central, superior, inferior)
+    materials:
+      item1: "IRON_INGOT"
+      item2: "onerium"
+    # Quantidades de cada material
+    quantities:
+      item2: 2
+      item1: 1
+

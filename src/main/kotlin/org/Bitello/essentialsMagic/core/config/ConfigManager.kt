@@ -9,18 +9,11 @@ import java.io.File
 class ConfigManager(private val plugin: EssentialsMagic) {
 
     private lateinit var config: FileConfiguration
-    private lateinit var craftsConfig: YamlConfiguration
 
     fun loadConfigs() {
         plugin.saveDefaultConfig()
         config = plugin.config
 
-        // Carregar configuração de crafts
-        val craftsFile = File(plugin.dataFolder, "crafts.yml")
-        if (!craftsFile.exists()) {
-            plugin.saveResource("crafts.yml", false)
-        }
-        craftsConfig = YamlConfiguration.loadConfiguration(craftsFile)
     }
 
     fun getConfig(): FileConfiguration = config
@@ -95,97 +88,39 @@ class ConfigManager(private val plugin: EssentialsMagic) {
 
     fun getTearId(): String? = config.getString("tear.id")
 
+    fun getTearIdAnimation(): String? = config.getString("tear.id_animation")
+
     fun getTearMenuTitle(): String = config.getString("tear.menu.title", "§8Tear de Crafting") ?: "§8Tear de Crafting"
 
-    fun getTearMenuSize(): Int = config.getInt("tear.menu.size", 36)
+    // Prisma
+    fun isPrismaEnabled(): Boolean = config.getBoolean("prisma.enabled", true)
 
-    // Métodos para gerenciar crafts
-    fun getAllCraftIds(): List<String> {
-        val craftsSection = craftsConfig.getConfigurationSection("crafts") ?: return emptyList()
-        return craftsSection.getKeys(false).toList()
-    }
+    fun getPrismaId(): String? = config.getString("prisma.id")
 
-    fun craftExists(craftId: String): Boolean {
-        return craftsConfig.contains("crafts.$craftId")
-    }
+    fun getPrismaIdAnimation(): String? = config.getString("prisma.id_animation")
 
-    fun getCraftTime(craftId: String): Int {
-        return craftsConfig.getInt("crafts.$craftId.time", 60)
-    }
+   fun getPrismaFuel(): List<Pair<String, Int>> {
+       val fuelSection = config.getConfigurationSection("prisma.fuel")
+       if (fuelSection == null) {
+           plugin.logger.warning("A seção 'prisma.fuel' não foi encontrada no arquivo de configuração.")
+           return emptyList()
+       }
 
-    fun getCraftResult(craftId: String): String? {
-        return craftsConfig.getString("crafts.$craftId.result")
-    }
+       val fuels = fuelSection.getKeys(false).map { key ->
+           val value = fuelSection.getInt(key)
+           plugin.logger.info("Carregando combustível: $key com valor: $value")
+           key to value
+       }
 
-    fun getCraftMaterials(craftId: String): Map<String, Int> {
-        val result = mutableMapOf<String, Int>()
+       if (fuels.isEmpty()) {
+           plugin.logger.warning("Nenhum combustível foi encontrado na seção 'prisma.fuel'.")
+       }
 
-        // Obter os materiais
-        val materialsSection = craftsConfig.getConfigurationSection("crafts.$craftId.materials") ?: return emptyMap()
-        val quantitiesSection = craftsConfig.getConfigurationSection("crafts.$craftId.quantities") ?: return emptyMap()
+       return fuels
+   }
 
-        // Processar item central (obrigatório)
-        val centralItem = materialsSection.getString("central")
-        if (centralItem != null) {
-            val quantity = quantitiesSection.getInt(centralItem, 1)
-            result[centralItem] = quantity
-        }
 
-        // Processar item superior (opcional)
-        val superiorItem = materialsSection.getString("superior")
-        if (superiorItem != null) {
-            val quantity = quantitiesSection.getInt(superiorItem, 1)
-            result[superiorItem] = quantity
-        }
-
-        // Processar item inferior (opcional)
-        val inferiorItem = materialsSection.getString("inferior")
-        if (inferiorItem != null) {
-            val quantity = quantitiesSection.getInt(inferiorItem, 1)
-            result[inferiorItem] = quantity
-        }
-
-        return result
-    }
-
-    fun findCraftId(centralItemId: String?, superiorItemId: String?, inferiorItemId: String?): String? {
-        if (centralItemId == null) return null
-
-        val craftsSection = craftsConfig.getConfigurationSection("crafts") ?: return null
-
-        for (craftId in craftsSection.getKeys(false)) {
-            val materialsSection = craftsConfig.getConfigurationSection("crafts.$craftId.materials") ?: continue
-
-            val centralMatch = materialsSection.getString("central") == centralItemId
-
-            // Verificar item superior
-            val superiorMatch = if (superiorItemId == null) {
-                materialsSection.getString("superior") == null
-            } else {
-                materialsSection.getString("superior") == superiorItemId
-            }
-
-            // Verificar item inferior
-            val inferiorMatch = if (inferiorItemId == null) {
-                materialsSection.getString("inferior") == null
-            } else {
-                materialsSection.getString("inferior") == inferiorItemId
-            }
-
-            if (centralMatch && superiorMatch && inferiorMatch) {
-                return craftId
-            }
-        }
-
-        return null
-    }
-
-    fun getTearMessages(): Map<String, String> {
-        val messagesSection = config.getConfigurationSection("tear.messages") ?: return emptyMap()
-        return messagesSection.getKeys(false).associateWith { messagesSection.getString(it).orEmpty() }
-    }
-
-    fun getTearMessage(key: String, default: String): String {
-        return config.getString("tear.messages.$key", default) ?: default
+    fun getMensagem(key: String, default: String): String {
+        return config.getString("messages.$key", default) ?: default
     }
 }

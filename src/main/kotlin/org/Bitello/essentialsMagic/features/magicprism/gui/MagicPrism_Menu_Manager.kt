@@ -1,4 +1,4 @@
-package org.Bitello.essentialsMagic.features.magictear.gui
+package org.Bitello.essentialsMagic.features.magicprism.gui
 
 import com.nexomc.nexo.api.NexoFurniture
 import com.nexomc.nexo.api.NexoItems
@@ -6,7 +6,7 @@ import com.nexomc.nexo.api.NexoItems.idFromItem
 import org.Bitello.essentialsMagic.EssentialsMagic
 import org.Bitello.essentialsMagic.common.craft.CraftManager
 import org.Bitello.essentialsMagic.common.craft.CraftGuiManager
-import org.Bitello.essentialsMagic.features.magictear.MagicTearManager
+import org.Bitello.essentialsMagic.features.magicprism.MagicPrismManager
 import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.Material
@@ -18,21 +18,21 @@ import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import kotlin.math.min
 
-class MagicTear_Menu_Manager(
+class MagicPrism_Menu_Manager(
     plugin: EssentialsMagic,
-    private val magicTearManager: MagicTearManager
-) : CraftGuiManager(plugin, magicTearManager, "Magic Tear", "tear") {
+    private val prismaManager: MagicPrismManager
+) : CraftGuiManager(plugin, prismaManager, "Prisma", "prism") {
 
     override fun openMenu(player: Player, location: Location) {
-        // Implementação específica para o Magic Tear
-        val title = "§5§lMagic Tear Crafting"
+        // Implementação específica para o Prisma
+        val title = "§b§lPrisma Mágico"
         val inventory = createInventory(title)
 
         // Configuração inicial do inventário
         setupInitialInventory(inventory)
 
         // Verificar se há um craft em andamento
-        val craft = magicTearManager.getActiveCraft(location)
+        val craft = prismaManager.getActiveCraft(location)
         if (craft != null) {
             // Se existe um craft em andamento, mostrar a interface de progresso
             setupProgressInventory(inventory, craft)
@@ -47,54 +47,72 @@ class MagicTear_Menu_Manager(
     private fun setupInitialInventory(inventory: Inventory) {
         // Configurar slots com vidros decorativos
         for (i in 0 until inventory.size) {
-            if (i !in listOf(SLOT_ITEM_CENTRAL, SLOT_ITEM_SUPERIOR, SLOT_ITEM_INFERIOR, SLOT_RESULTADO, SLOT_CONFIRMAR)) {
-                inventory.setItem(i, ItemStack(Material.BLACK_STAINED_GLASS_PANE).apply {
-                    itemMeta = itemMeta?.apply { setDisplayName(" ") }
-                })
-            }
+            inventory.setItem(i, ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
+                itemMeta = itemMeta?.apply { setDisplayName(" ") }
+            })
         }
 
-        // Configurar slots de itens
-        inventory.setItem(SLOT_ITEM_CENTRAL, ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§cItem Central §7(Obrigatório)") }
+        // Configurar slots de itens (formato de fornalha)
+        // Primeiro item (esquerda)
+        inventory.setItem(SLOT_ITEM_PRIMEIRO, ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§c1º Item §7(Obrigatório)") }
         })
 
-        inventory.setItem(SLOT_ITEM_SUPERIOR, ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§eItem Superior §7(Opcional)") }
+        // Combustível (centro)
+        inventory.setItem(SLOT_COMBUSTIVEL, ItemStack(Material.ORANGE_STAINED_GLASS_PANE).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§6Combustível §7(Obrigatório)") }
         })
 
-        inventory.setItem(SLOT_ITEM_INFERIOR, ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§eItem Inferior §7(Opcional)") }
+        // Segundo item (abaixo do primeiro)
+        inventory.setItem(SLOT_ITEM_SEGUNDO, ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§c2º Item §7(Obrigatório)") }
         })
+
+        // Resultado (direita)
         inventory.setItem(SLOT_RESULTADO, ItemStack(Material.LIME_STAINED_GLASS_PANE).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§aCombine itens no Tear magico para criar novos itens!") }
+            itemMeta = itemMeta?.apply { setDisplayName("§aCombine itens no Prisma para criar novos itens!") }
+        })
+
+        // Decoração de fogo (abaixo do combustível)
+        inventory.setItem(SLOT_COMBUSTIVEL + 9, ItemStack(Material.FIRE_CHARGE).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§6Energia Mágica") }
         })
 
         // Configurar botão de confirmar
         inventory.setItem(SLOT_CONFIRMAR, ItemStack(Material.EMERALD).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§a§lConfirmar Craft") }
+            itemMeta = itemMeta?.apply { setDisplayName("§a§lIniciar Craft") }
+        })
+
+        // Adicionar decoração de setas indicando o fluxo
+        inventory.setItem(SLOT_ITEM_PRIMEIRO + 1, ItemStack(Material.ARROW).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§7→") }
+        })
+
+        inventory.setItem(SLOT_COMBUSTIVEL + 1, ItemStack(Material.ARROW).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§7→") }
         })
     }
 
     private fun setupProgressInventory(inventory: Inventory, craft: CraftManager.ActiveCraft) {
         // Limpar slots de itens
-        inventory.setItem(SLOT_ITEM_CENTRAL, null)
-        inventory.setItem(SLOT_ITEM_SUPERIOR, null)
-        inventory.setItem(SLOT_ITEM_INFERIOR, null)
+        inventory.setItem(SLOT_ITEM_PRIMEIRO, null)
+        inventory.setItem(SLOT_ITEM_SEGUNDO, null)
+        inventory.setItem(SLOT_COMBUSTIVEL, null)
 
         // Informações do craft em andamento
         val resultItem = NexoItems.itemFromId(craft.resultItemId)?.build()
         if (resultItem != null) {
             resultItem.amount = craft.quantity
-            inventory.setItem(SLOT_ITEM_SUPERIOR, resultItem)
+            inventory.setItem(SLOT_RESULTADO, resultItem)
         }
 
-        // Criar barra de progresso
-        updateProgressBar(inventory, craft, 10, 16)
-
-        inventory.setItem(SLOT_ITEM_INFERIOR, ItemStack(Material.BLACK_STAINED_GLASS_PANE).apply {
-            itemMeta = itemMeta?.apply { setDisplayName("§eItem Inferior §7(Opcional)") }
+        // Decoração de fogo animado durante o craft
+        inventory.setItem(SLOT_COMBUSTIVEL + 9, ItemStack(Material.BLAZE_POWDER).apply {
+            itemMeta = itemMeta?.apply { setDisplayName("§6Energia Mágica Ativa") }
         })
+
+        // Criar barra de progresso
+        updateProgressBar(inventory, craft, 19, 25)
 
         // Atualizar botão de confirmar para mostrar tempo restante, item e quantidade
         inventory.setItem(SLOT_CONFIRMAR, ItemStack(Material.CLOCK).apply {
@@ -114,11 +132,11 @@ class MagicTear_Menu_Manager(
             val location = playerMenuLocations[playerId] ?: continue
 
             // Obter o craft ativo na localização
-            val craft = magicTearManager.getActiveCraft(location)
+            val craft = prismaManager.getActiveCraft(location)
 
             if (craft != null) {
                 // Atualizar a barra de progresso
-                updateProgressBar(inv, craft, 10, 16)
+                updateProgressBar(inv, craft, 19, 25)
 
                 // Atualizar o botão de tempo restante
                 inv.setItem(SLOT_CONFIRMAR, ItemStack(Material.CLOCK).apply {
@@ -142,7 +160,7 @@ class MagicTear_Menu_Manager(
     }
 
     override fun createInventory(title: String): Inventory {
-        return Bukkit.createInventory(null, 27, title)
+        return Bukkit.createInventory(null, 36, title)  // 4 linhas (36 slots)
     }
 
     override fun updateProgressBar(inventory: Inventory, craft: CraftManager.ActiveCraft?, slotStart: Int, slotEnd: Int) {
@@ -167,7 +185,13 @@ class MagicTear_Menu_Manager(
         val cursor = event.cursor ?: ItemStack(Material.AIR)
         val clickedItem = event.currentItem
 
-        val tearLocation = playerMenuLocations[player.uniqueId] ?: return
+        val prismaLocation = playerMenuLocations[player.uniqueId] ?: return
+
+        // Cancelar cliques em slots que não são interativos
+        if (slot < 36 && slot !in listOf(SLOT_ITEM_PRIMEIRO, SLOT_ITEM_SEGUNDO, SLOT_COMBUSTIVEL, SLOT_CONFIRMAR)) {
+            event.isCancelled = true
+            return
+        }
 
         // Ignorar interações no SLOT_RESULTADO
         if (slot == SLOT_RESULTADO) {
@@ -176,7 +200,7 @@ class MagicTear_Menu_Manager(
         }
 
         // Verificar se há um craft em andamento
-        val activeCraft = magicTearManager.getActiveCraft(tearLocation)
+        val activeCraft = prismaManager.getActiveCraft(prismaLocation)
 
         if (activeCraft != null && activeCraft.isComplete && slot == SLOT_CONFIRMAR) {
             // Coletar os itens do craft
@@ -195,17 +219,17 @@ class MagicTear_Menu_Manager(
                 }
 
                 // Remover o craft
-                magicTearManager.removeCraft(tearLocation)
-                inventory.setItem(SLOT_ITEM_SUPERIOR, null)
-                inventory.setItem(SLOT_ITEM_CENTRAL, null)
-                inventory.setItem(SLOT_ITEM_INFERIOR, null)
+                prismaManager.removeCraft(prismaLocation)
+                inventory.setItem(SLOT_ITEM_PRIMEIRO, null)
+                inventory.setItem(SLOT_ITEM_SEGUNDO, null)
+                inventory.setItem(SLOT_COMBUSTIVEL, null)
 
                 // Reabrir o menu
-                openMenu(player, tearLocation)
+                openMenu(player, prismaLocation)
 
                 // remove a mobilia do nexo e coloca outra no lugar
-                NexoFurniture.remove(tearLocation, null)
-                NexoFurniture.place(configManager.getTearId(), tearLocation, tearLocation.yaw, BlockFace.UP)
+                NexoFurniture.remove(prismaLocation, null)
+                NexoFurniture.place(configManager.getPrismaId(), prismaLocation, prismaLocation.yaw, BlockFace.UP)
 
                 // Enviar mensagem de sucesso
                 player.sendMessage(configManager.getMensagem("craft_collected", "§aVocê coletou os itens do craft!"))
@@ -215,16 +239,18 @@ class MagicTear_Menu_Manager(
 
         // Se há um craft em andamento e não está completo, não permitir interação
         if (activeCraft != null && !activeCraft.isComplete) {
+            event.isCancelled = true
             return
         }
 
         // Permitir colocar/retirar itens dos slots específicos
-        if (slot in listOf(SLOT_ITEM_CENTRAL, SLOT_ITEM_SUPERIOR, SLOT_ITEM_INFERIOR)) {
+        if (slot in listOf(SLOT_ITEM_PRIMEIRO, SLOT_ITEM_SEGUNDO, SLOT_COMBUSTIVEL)) {
             handleItemSlotInteraction(player, inventory, slot, clickedItem, cursor)
         }
         // Processamento do botão de confirmar
         else if (slot == SLOT_CONFIRMAR) {
-            handleConfirmButton(player, inventory, tearLocation)
+            event.isCancelled = true
+            handleConfirmButton(player, inventory, prismaLocation)
         }
     }
 
@@ -233,7 +259,7 @@ class MagicTear_Menu_Manager(
         if (!cursor.type.isAir) {
             // Se o slot está vazio ou tem vidro decorativo
             if (clickedItem == null || clickedItem.type.isAir ||
-                clickedItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+                clickedItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE)) {
 
                 // Colocar o item do cursor no slot
                 val itemToPlace = cursor.clone()
@@ -248,7 +274,7 @@ class MagicTear_Menu_Manager(
                 })
             }
             // Se o slot já tem um item (que não é vidro decorativo), trocar os itens
-            else if (clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+            else if (clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE)) {
                 val tempItem = clickedItem.clone()
                 inventory.setItem(slot, cursor.clone())
                 player.setItemOnCursor(tempItem)
@@ -261,7 +287,7 @@ class MagicTear_Menu_Manager(
         }
         // Se o jogador está tentando pegar um item do slot (cursor vazio)
         else if (cursor.type.isAir && clickedItem != null &&
-            clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+            clickedItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE)) {
 
             // Pegar o item do slot
             player.setItemOnCursor(clickedItem.clone())
@@ -274,11 +300,19 @@ class MagicTear_Menu_Manager(
                 // Se o slot ainda estiver vazio (não foi modificado por outro evento)
                 if (inventory.getItem(slot) == null || inventory.getItem(slot)?.type?.isAir == true) {
                     val glassPane = when (slot) {
-                        SLOT_ITEM_CENTRAL -> ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
-                            itemMeta = itemMeta?.apply { setDisplayName("§cItem Central §7(Obrigatório)") }
+                        SLOT_ITEM_PRIMEIRO, SLOT_ITEM_SEGUNDO -> ItemStack(Material.RED_STAINED_GLASS_PANE).apply {
+                            itemMeta = itemMeta?.apply {
+                                setDisplayName(
+                                    if (slot == SLOT_ITEM_PRIMEIRO) "§c1º Item §7(Obrigatório)"
+                                    else "§c2º Item §7(Obrigatório)"
+                                )
+                            }
                         }
-                        else -> ItemStack(Material.YELLOW_STAINED_GLASS_PANE).apply {
-                            itemMeta = itemMeta?.apply { setDisplayName("§eItem §7(Opcional)") }
+                        SLOT_COMBUSTIVEL -> ItemStack(Material.ORANGE_STAINED_GLASS_PANE).apply {
+                            itemMeta = itemMeta?.apply { setDisplayName("§6Combustível §7(Obrigatório)") }
+                        }
+                        else -> ItemStack(Material.LIGHT_BLUE_STAINED_GLASS_PANE).apply {
+                            itemMeta = itemMeta?.apply { setDisplayName(" ") }
                         }
                     }
                     inventory.setItem(slot, glassPane)
@@ -288,24 +322,45 @@ class MagicTear_Menu_Manager(
         }
     }
 
-    private fun handleConfirmButton(player: Player, inventory: Inventory, tearLocation: Location) {
+    private fun handleConfirmButton(player: Player, inventory: Inventory, prismaLocation: Location) {
         // Verificar se há itens nos slots
-        val centralItem = inventory.getItem(SLOT_ITEM_CENTRAL)
-        val superiorItem = inventory.getItem(SLOT_ITEM_SUPERIOR)
-        val inferiorItem = inventory.getItem(SLOT_ITEM_INFERIOR)
+        val primeiroItem = inventory.getItem(SLOT_ITEM_PRIMEIRO)
+        val segundoItem = inventory.getItem(SLOT_ITEM_SEGUNDO)
+        val combustivelItem = inventory.getItem(SLOT_COMBUSTIVEL)
 
-        if (centralItem == null || centralItem.type == Material.RED_STAINED_GLASS_PANE) {
+        // Verificar se todos os itens obrigatórios estão presentes
+        if (primeiroItem == null || primeiroItem.type == Material.RED_STAINED_GLASS_PANE) {
             player.sendMessage(
                 configManager.getMensagem(
-                    "missing_central_item",
-                    "§cVocê precisa colocar um item central!"
+                    "missing_first_item",
+                    "§cVocê precisa colocar o primeiro item!"
+                )
+            )
+            return
+        }
+
+        if (segundoItem == null || segundoItem.type == Material.RED_STAINED_GLASS_PANE) {
+            player.sendMessage(
+                configManager.getMensagem(
+                    "missing_second_item",
+                    "§cVocê precisa colocar o segundo item!"
+                )
+            )
+            return
+        }
+
+        if (combustivelItem == null || combustivelItem.type == Material.ORANGE_STAINED_GLASS_PANE) {
+            player.sendMessage(
+                configManager.getMensagem(
+                    "missing_fuel",
+                    "§cVocê precisa colocar um combustível!"
                 )
             )
             return
         }
 
         // Verificar se o craft é válido
-        val craftId = checkValidCraft(centralItem, superiorItem, inferiorItem)
+        val craftId = checkValidCraft(primeiroItem, segundoItem, combustivelItem)
         if (craftId == null) {
             player.sendMessage(
                 configManager.getMensagem(
@@ -329,7 +384,7 @@ class MagicTear_Menu_Manager(
         }
 
         // Calcular a quantidade máxima que pode ser craftada
-        val maxQuantity = calculateMaxCraftQuantity(centralItem, superiorItem, inferiorItem, craftId)
+        val maxQuantity = calculateMaxCraftQuantity(primeiroItem, segundoItem, combustivelItem, craftId)
         if (maxQuantity <= 0) {
             player.sendMessage(
                 configManager.getMensagem(
@@ -340,18 +395,31 @@ class MagicTear_Menu_Manager(
             return
         }
 
-        // Consumir os itens
-        consumeCraftItems(inventory, craftId, maxQuantity, tearLocation)
+        // Obter o tempo de craft baseado no combustível
+        val combustivelId = idFromItem(combustivelItem) ?: combustivelItem.type.name
+        val fuelTime = getFuelTime(combustivelId)
+        if (fuelTime <= 0) {
+            player.sendMessage(
+                configManager.getMensagem(
+                    "invalid_fuel",
+                    "§cEste item não é um combustível válido!"
+                )
+            )
+            return
+        }
 
-        // Iniciar o craft
-        val success = magicTearManager.startCraft(tearLocation, craftId, resultItemId, maxQuantity)
+        // Consumir os itens
+        consumeCraftItems(inventory, craftId, maxQuantity, prismaLocation)
+
+        // Iniciar o craft com o tempo baseado no combustível
+        val success = prismaManager.startCraft(prismaLocation, craftId, resultItemId, maxQuantity, combustivelId, fuelTime)
         if (success) {
             // Obter o nome do item para a mensagem
             val resultPreview = NexoItems.itemFromId(resultItemId)!!.build()
             val itemName = if (resultPreview.itemMeta.hasDisplayName()) resultPreview.itemMeta.displayName else resultItemId
 
             // Obter o tempo de craft
-            val craftTime = craftManager.getCraftTime(craftId) * maxQuantity
+            val craftTime = fuelTime * maxQuantity
             val formattedTime = formatTime(craftTime)
 
             // Enviar mensagem personalizada
@@ -362,52 +430,77 @@ class MagicTear_Menu_Manager(
 
             player.sendMessage(message)
 
-
-            NexoFurniture.remove(tearLocation, null)
-            NexoFurniture.place(configManager.getTearIdAnimation(), tearLocation, tearLocation.yaw, BlockFace.UP)
+            // Trocar a mobília para a versão animada
+            NexoFurniture.remove(prismaLocation, null)
+            NexoFurniture.place(configManager.getPrismaIdAnimation(), prismaLocation, prismaLocation.yaw, BlockFace.UP)
 
             // Reabrir o menu para atualizar o estado do craft
-            openMenu(player, tearLocation)
+            openMenu(player, prismaLocation)
         } else {
             player.sendMessage(configManager.getMensagem("error_starting_craft", "§cErro ao iniciar o craft!"))
         }
     }
 
-    private fun checkValidCraft(centralItem: ItemStack, superiorItem: ItemStack?, inferiorItem: ItemStack?): String? {
-        // Verificar se o item central é um painel de vidro decorativo
-        if (centralItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+    private fun getFuelTime(fuelId: String): Int {
+        val fuelList = configManager.getPrismaFuel()
+        for ((id, time) in fuelList) {
+            if (id == fuelId) {
+                return time
+            }
+        }
+        return -1
+    }
+
+   private fun checkValidCraft(primeiroItem: ItemStack, segundoItem: ItemStack, combustivelItem: ItemStack): String? {
+        plugin.logger.info("Iniciando validação do craft com os itens: Primeiro=${primeiroItem.type}, Segundo=${segundoItem.type}, Combustível=${combustivelItem.type}")
+
+        // Verificar se os itens são painéis de vidro decorativos
+        if (primeiroItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE) ||
+            segundoItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE) ||
+            combustivelItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE)) {
+            plugin.logger.warning("Itens inválidos: um ou mais itens são painéis de vidro decorativos.")
             return null
         }
 
-        // Verificar se o item superior é um painel de vidro decorativo
-        val validSuperiorItem = if (superiorItem != null &&
-            superiorItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
-            null
-        } else {
-            superiorItem
-        }
-
-        // Tratar o item inferior como null se for um painel de vidro decorativo
-        val validInferiorItem = if (inferiorItem != null &&
-            inferiorItem.type in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
-            null
-        } else {
-            inferiorItem
-        }
-
         // Obter os IDs dos itens ou usar o tipo como fallback
-        val centralId = idFromItem(centralItem) ?: centralItem.type.name
-        val superiorId = validSuperiorItem?.let { idFromItem(it) ?: it.type.name }
-        val inferiorId = validInferiorItem?.let { idFromItem(it) ?: it.type.name }
+        val primeiroId = idFromItem(primeiroItem) ?: primeiroItem.type.name
+        val segundoId = idFromItem(segundoItem) ?: segundoItem.type.name
+        val combustivelId = idFromItem(combustivelItem) ?: combustivelItem.type.name
+
+        plugin.logger.info("IDs dos itens obtidos: Primeiro=$primeiroId, Segundo=$segundoId, Combustível=$combustivelId")
+
+        // Verificar se o combustível é válido
+        val fuelList = configManager.getPrismaFuel()
+        var validFuel = false
+        for ((id, _) in fuelList) {
+            if (id == combustivelId) {
+                validFuel = true
+                break
+            }
+        }
+
+        if (!validFuel) {
+            plugin.logger.warning("Combustível inválido: $combustivelId não está na lista de combustíveis permitidos. combustiveis permitidos: $fuelList")
+            return null
+        }
+
+        plugin.logger.info("Combustível válido: $combustivelId")
 
         // Verificar se a combinação existe nos crafts
-        return craftManager.findCraftId(centralId, superiorId, inferiorId)
+        val craftId = craftManager.findCraftId(primeiroId, segundoId)
+        if (craftId == null) {
+            plugin.logger.warning("Nenhum craft encontrado para os itens: Primeiro=$primeiroId, Segundo=$segundoId")
+        } else {
+            plugin.logger.info("Craft válido encontrado: $craftId")
+        }
+
+        return craftId
     }
 
     private fun calculateMaxCraftQuantity(
-        centralItem: ItemStack,
-        superiorItem: ItemStack?,
-        inferiorItem: ItemStack?,
+        primeiroItem: ItemStack,
+        segundoItem: ItemStack,
+        combustivelItem: ItemStack,
         craftId: String
     ): Int {
         val materials: Map<String, Int> = getMaterialsForCraft(craftId)
@@ -417,26 +510,22 @@ class MagicTear_Menu_Manager(
         for ((materialId, requiredAmount) in materials) {
             var availableAmount = 0
 
-            // Verificar o item central
-            val centralId = idFromItem(centralItem) ?: centralItem.type.name
-            if (centralId == materialId) {
-                availableAmount += centralItem.amount
+            // Verificar o primeiro item
+            val primeiroId = idFromItem(primeiroItem) ?: primeiroItem.type.name
+            if (primeiroId == materialId) {
+                availableAmount += primeiroItem.amount
             }
 
-            // Verificar o item superior
-            if (superiorItem != null && superiorItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
-                val superiorId = idFromItem(superiorItem) ?: superiorItem.type.name
-                if (superiorId == materialId) {
-                    availableAmount += superiorItem.amount
-                }
+            // Verificar o segundo item
+            val segundoId = idFromItem(segundoItem) ?: segundoItem.type.name
+            if (segundoId == materialId) {
+                availableAmount += segundoItem.amount
             }
 
-            // Verificar o item inferior
-            if (inferiorItem != null && inferiorItem.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
-                val inferiorId = idFromItem(inferiorItem) ?: inferiorItem.type.name
-                if (inferiorId == materialId) {
-                    availableAmount += inferiorItem.amount
-                }
+            // Verificar o combustível
+            val combustivelId = idFromItem(combustivelItem) ?: combustivelItem.type.name
+            if (combustivelId == materialId) {
+                availableAmount += combustivelItem.amount
             }
 
             // Calcular a quantidade máxima para este material
@@ -449,7 +538,7 @@ class MagicTear_Menu_Manager(
         return if (maxQuantity == Int.MAX_VALUE) 0 else maxQuantity
     }
 
-   private fun giveOrDropLeftover(amount: Int, item: ItemStack, location: Location?) {
+    private fun giveOrDropLeftover(amount: Int, item: ItemStack, location: Location?) {
         plugin.logger.info("Chamando giveOrDropLeftover para o item: ${item.type} com quantidade: $amount")
 
         if (amount <= 0) {
@@ -479,13 +568,13 @@ class MagicTear_Menu_Manager(
         // Tentar adicionar ao inventário do jogador
         val leftover = player.inventory.addItem(leftoverItem)
 
-       if (leftover.isNotEmpty()) {
-           player.sendMessage("§cInventário cheio! Dropando item nas coordenadas do tear.")
-           val dropLocation = location.clone().add(0.0, 1.0, 0.0)
-           for (leftItem in leftover.values) {
-               dropLocation.world.dropItemNaturally(dropLocation, leftItem)
-           }
-       }
+        if (leftover.isNotEmpty()) {
+            player.sendMessage("§cInventário cheio! Dropando item nas coordenadas do prisma.")
+            val dropLocation = location.clone().add(0.0, 1.0, 0.0)
+            for (leftItem in leftover.values) {
+                dropLocation.world.dropItemNaturally(dropLocation, leftItem)
+            }
+        }
     }
 
     override fun consumeCraftItems(inventory: Inventory, craftId: String, quantity: Int, location: Location) {
@@ -495,7 +584,7 @@ class MagicTear_Menu_Manager(
         fun processItem(slot: Int, slotName: String) {
             val item = inventory.getItem(slot)
             item?.let {
-                if (it.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.YELLOW_STAINED_GLASS_PANE)) {
+                if (it.type !in listOf(Material.RED_STAINED_GLASS_PANE, Material.ORANGE_STAINED_GLASS_PANE)) {
                     val itemId = idFromItem(it) ?: it.type.name
                     materials[itemId]?.let { requiredAmount ->
                         val totalRequired = requiredAmount * quantity
@@ -508,7 +597,6 @@ class MagicTear_Menu_Manager(
                             if (it.amount <= 0) {
                                 inventory.setItem(slot, null)
                             }
-                        } else {
                         }
                     } ?: plugin.logger.warning("Material não encontrado nos requisitos do craft para o $slotName.")
                 }
@@ -516,10 +604,11 @@ class MagicTear_Menu_Manager(
         }
 
         // Processar os itens nos slots
-        processItem(SLOT_ITEM_CENTRAL, "Item central")
-        processItem(SLOT_ITEM_SUPERIOR, "Item superior")
-        processItem(SLOT_ITEM_INFERIOR, "Item inferior")
+        processItem(SLOT_ITEM_PRIMEIRO, "Primeiro item")
+        processItem(SLOT_ITEM_SEGUNDO, "Segundo item")
+        processItem(SLOT_COMBUSTIVEL, "Combustível")
     }
+
     override fun getMaterialsForCraft(craftId: String): Map<String, Int> {
         return craftManager.getCraftMaterials(craftId)
     }
@@ -529,19 +618,19 @@ class MagicTear_Menu_Manager(
         val location = playerMenuLocations[player.uniqueId] ?: return
 
         // Verificar se há um craft em andamento
-        val activeCraft = magicTearManager.getActiveCraft(location)
+        val activeCraft = prismaManager.getActiveCraft(location)
         if (activeCraft != null) {
             return // Não fazer nada se houver um craft em andamento
         }
 
-        val slots = listOf(SLOT_ITEM_CENTRAL, SLOT_ITEM_SUPERIOR, SLOT_ITEM_INFERIOR)
+        val slots = listOf(SLOT_ITEM_PRIMEIRO, SLOT_ITEM_SEGUNDO, SLOT_COMBUSTIVEL)
 
         for (slot in slots) {
             val item = inv.getItem(slot)
             if (item != null && !item.type.isAir &&
                 item.type !in listOf(
                     Material.RED_STAINED_GLASS_PANE,
-                    Material.YELLOW_STAINED_GLASS_PANE,
+                    Material.ORANGE_STAINED_GLASS_PANE,
                     Material.BARRIER
                 )
             ) {
@@ -556,11 +645,11 @@ class MagicTear_Menu_Manager(
     }
 
     companion object {
-        // Posições dos slots no inventário
-        private const val SLOT_ITEM_CENTRAL = 13
-        private const val SLOT_ITEM_SUPERIOR = 4
-        private const val SLOT_ITEM_INFERIOR = 22
-        private const val SLOT_RESULTADO = 16
-        private const val SLOT_CONFIRMAR = 25
+        // Posições dos slots no inventário (layout tipo fornalha)
+        private const val SLOT_ITEM_PRIMEIRO = 10  // Primeiro item (esquerda)
+        private const val SLOT_COMBUSTIVEL = 13    // Combustível (centro)
+        private const val SLOT_ITEM_SEGUNDO = 19   // Segundo item (abaixo do primeiro)
+        private const val SLOT_RESULTADO = 16      // Resultado (direita)
+        private const val SLOT_CONFIRMAR = 34      // Botão de confirmar (canto inferior direito)
     }
 }

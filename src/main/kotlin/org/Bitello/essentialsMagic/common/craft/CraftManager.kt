@@ -20,10 +20,12 @@ import kotlin.math.max
 abstract class CraftManager(
     protected val plugin: EssentialsMagic,
     private val systemName: String,
-    private val configFilename: String
+    private val configFilename: String,
+    private val ymlname: String
 ) : Listener {
 
     protected val configManager = plugin.configManager
+    protected val craftManager = plugin.craftManager.CraftFileManager(ymlname)
     protected val activeCrafts: MutableMap<Location, ActiveCraft> = ConcurrentHashMap()
     protected val craftsFile: File
     protected var craftsConfig: YamlConfiguration? = null
@@ -97,6 +99,13 @@ abstract class CraftManager(
                 config["$path.quantity"] = craft.quantity
                 config["$path.remainingTime"] = craft.remainingTime
                 config["$path.totalTime"] = craft.totalTime
+                config["$path.fuelId"] = craft.fuelId
+                config["$path.fuelTime"] = craft.fuelTime
+
+                // Salvar os itens de craft
+                for (i in 0 until craft.craftItems.size) {
+                    config["$path.craftItems.$i.id"] = craft.craftItems[i]
+                }
 
                 // Salvar dados adicionais específicos da implementação
                 saveExtraCraftData(config, path, craft)
@@ -138,14 +147,29 @@ abstract class CraftManager(
             val quantity = craftSection.getInt("quantity", -1)
             val remainingTime = craftSection.getInt("remainingTime", -1)
             val totalTime = craftSection.getInt("totalTime", -1)
+            val fuelId = craftSection.getString("fuelId", "") ?: ""
+            val fuelTime = craftSection.getInt("fuelTime", 0)
 
             if (craftId == null || resultItemId == null || quantity <= 0 || remainingTime < 0 || totalTime <= 0) {
                 plugin.logger.warning("Dados inválidos para o craft com a chave '$key'. Ignorando...")
                 continue
             }
 
+            // Carregar os itens de craft
+            val craftItems = mutableListOf<String>()
+            val craftItemsSection = craftSection.getConfigurationSection("craftItems")
+            if (craftItemsSection != null) {
+                for (itemKey in craftItemsSection.getKeys(false)) {
+                    val itemId = craftItemsSection.getString("$itemKey.id")
+                    if (itemId != null) {
+                        craftItems.add(itemId)
+                    }
+                }
+            }
+
             // Criar o craft ativo
-            val craft = createActiveCraft(craftId, resultItemId, quantity, remainingTime, totalTime)
+            val craft = createActiveCraft(craftId, resultItemId, quantity, remainingTime, totalTime, fuelId, fuelTime)
+            craft.craftItems.addAll(craftItems)
 
             // Carregar dados extras específicos da implementação
             loadExtraCraftData(craftConfig, craft)
@@ -188,7 +212,9 @@ abstract class CraftManager(
         if (!isSystemEnabled()) return
 
         val itemId = event.mechanic.itemID
-        if (getCraftingStationId() == itemId) {
+        val craftingStationIds = getCraftingStationId(listOf(itemId)) // Passa uma lista com o itemId
+
+        if (craftingStationIds.contains(itemId)) {
             val location = normalizeLocation(event.baseEntity.location)
 
             // Verificar se há um craft ativo nesta estação
@@ -207,7 +233,7 @@ abstract class CraftManager(
 
     protected fun dropCraftItems(location: Location, craft: ActiveCraft) {
         // Obter os materiais do craft a partir do ID do craft
-        val materials = configManager.getCraftMaterials(craft.craftId)
+        val materials = craftManager.getCraftMaterials(craft.craftId)
 
         // Dropar os materiais
         for ((itemId, value) in materials) {
@@ -240,6 +266,22 @@ abstract class CraftManager(
                 }
             }
         }
+
+        // Dropar o combustível também, se existir
+        if (craft.fuelId.isNotEmpty()) {
+            val fuelItem = NexoItems.itemFromId(craft.fuelId)?.build() ?: run {
+                val material = Material.matchMaterial(craft.fuelId)
+                if (material != null) {
+                    ItemStack(material, 1)
+                } else {
+                    null
+                }
+            }
+
+            if (fuelItem != null) {
+                location.world.dropItemNaturally(location, fuelItem)
+            }
+        }
     }
 
     @EventHandler
@@ -247,7 +289,9 @@ abstract class CraftManager(
         if (!isSystemEnabled()) return
 
         val itemId = event.mechanic.itemID
-        if (getCraftingStationId() == itemId) {
+        val craftingStationIds = getCraftingStationId(listOf(itemId)) // Passa uma lista com o itemId
+
+        if (craftingStationIds.contains(itemId)) {
             val player = event.player
             val location = normalizeLocation(event.baseEntity.location)
 
@@ -256,22 +300,36 @@ abstract class CraftManager(
         }
     }
 
-    fun startCraft(location: Location, craftId: String?, resultItemId: String?, quantity: Int): Boolean {
+    // Método atualizado para incluir combustível e tempo de combustível
+    fun startCraft(location: Location, craftId: String?, resultItemId: String?, quantity: Int, fuelId: String = "", fuelTime: Int = 0): Boolean {
         // Verificar se o craft existe
         if (craftId == null || !craftExists(craftId)) {
             return false
         }
 
         // Obter o tempo necessário para o craft
-        val craftTime = getCraftTime(craftId)
+        val craftTime = if (fuelTime > 0) fuelTime else getCraftTime(craftId)
         if (craftTime <= 0) {
             return false
         }
 
-        // Criar o craft ativo
-        val craft = createActiveCraft(craftId, resultItemId ?: "", quantity, craftTime * quantity, craftTime * quantity)
+        // Criar o craft ativo com os novos parâmetros
+        val craft = createActiveCraft(craftId, resultItemId ?: "", quantity, craftTime * quantity, craftTime * quantity, fuelId, fuelTime)
         activeCrafts[normalizeLocation(location)] = craft
 
+        return true
+    }
+
+    // Método para adicionar itens ao craft
+    fun addCraftItem(location: Location, itemId: String): Boolean {
+        val craft = getActiveCraft(location) ?: return false
+
+        // Verificar se já atingiu o limite de 9 itens
+        if (craft.craftItems.size >= 9) {
+            return false
+        }
+
+        craft.craftItems.add(itemId)
         return true
     }
 
@@ -300,22 +358,24 @@ abstract class CraftManager(
 
     // Métodos abstratos que devem ser implementados por classes específicas
     protected abstract fun isSystemEnabled(): Boolean
-    protected abstract fun getCraftingStationId(): String
+    protected abstract fun getCraftingStationId(ids: List<String>): List<String>
     protected abstract fun getSystemMessage(key: String, default: String): String
     protected abstract fun getCraftMaterials(craftId: String): Map<String, Int>
     protected abstract fun getCraftTime(craftId: String): Int
     protected abstract fun craftExists(craftId: String): Boolean
     protected abstract fun openCraftingMenu(player: org.bukkit.entity.Player, location: Location)
 
-    // Factory method para criar instâncias de ActiveCraft (possivelmente personalizadas)
+    // Factory method atualizado para criar instâncias de ActiveCraft com os novos parâmetros
     protected open fun createActiveCraft(
         craftId: String,
         resultItemId: String,
         quantity: Int,
         remainingTime: Int,
-        totalTime: Int
+        totalTime: Int,
+        fuelId: String = "",
+        fuelTime: Int = 0
     ): ActiveCraft {
-        return ActiveCraft(craftId, resultItemId, quantity, remainingTime, totalTime)
+        return ActiveCraft(craftId, resultItemId, quantity, remainingTime, totalTime, fuelId, fuelTime)
     }
 
     // Método para ser chamado quando o servidor desligar
@@ -324,14 +384,18 @@ abstract class CraftManager(
         plugin.logger.info("[$systemName] Salvando crafts ativos...")
     }
 
+    // Classe ActiveCraft atualizada com novos campos
     open class ActiveCraft(
         val craftId: String,
         val resultItemId: String,
         val quantity: Int,
         var remainingTime: Int,
-        val totalTime: Int
+        val totalTime: Int,
+        val fuelId: String = "",
+        val fuelTime: Int = 0
     ) {
         var isCompleted: Boolean = false
+        val craftItems: MutableList<String> = mutableListOf()
 
         val isComplete: Boolean
             get() = remainingTime <= 0

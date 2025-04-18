@@ -1,0 +1,29 @@
+# Definições de crafts
+crafts:
+  # Craft de Tecido Mágico
+  tecido_magico:
+    # Tempo em segundos para completar o craft
+    time: 60
+    # Item resultante
+    result: "tecido_magico"
+    # Materiais necessários (central, superior, inferior)
+    materials:
+      item1: "linha_encantada"
+      item2: "essencia_magica"
+      item3: null
+    # Quantidades de cada material
+    quantities:
+      item1: 2
+      item2: 1
+
+  # Craft de Luvas Arcanas
+  luvas_arcanas:
+    time: 120
+    result: "flor_onerica"
+    materials:
+      item1: "STRING"
+      item2: "onerita_moida"
+      item3: null
+    quantities:
+      item2: 2
+      item1: 1

@@ -8,10 +8,12 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
 import org.Bitello.essentialsMagic.core.apis.WorldGuardManager
 import org.Bitello.essentialsMagic.core.apis.LuckPermsManager
 import org.Bitello.essentialsMagic.core.config.ConfigManager
+import org.Bitello.essentialsMagic.core.config.CraftManager
 import org.Bitello.essentialsMagic.core.database.DataBaseManager
 
 import org.Bitello.essentialsMagic.features.magicfire.MagicFireManager
 import org.Bitello.essentialsMagic.features.magickey.MagicKeyManager
+import org.Bitello.essentialsMagic.features.magicprism.MagicPrismManager
 import org.Bitello.essentialsMagic.features.magictear.MagicTearManager
 
 import org.bukkit.Bukkit
@@ -28,6 +30,8 @@ class EssentialsMagic : JavaPlugin() {
 
     lateinit var configManager: ConfigManager
         private set
+    lateinit var craftManager: CraftManager
+        private set
     lateinit var databaseManager: DataBaseManager
         private set
 
@@ -43,12 +47,18 @@ class EssentialsMagic : JavaPlugin() {
         private set
     lateinit var magictearManager: MagicTearManager
         private set
+    lateinit var magicPrismManager: MagicPrismManager
+        private set
 
     override fun onLoad() {
 
         // ConfigManager initialization
         configManager = ConfigManager(this)
         configManager.loadConfigs()
+
+        // CraftManager initialization
+        craftManager = CraftManager(this)
+        craftManager.loadCraftConfigs()
 
         // WorldGuardManager initialization
         try {
@@ -77,6 +87,10 @@ class EssentialsMagic : JavaPlugin() {
         // MagicTear initialization
         magictearManager = MagicTearManager(this)
         magictearManager.initialize()
+
+        // MagicPrism initialization
+        magicPrismManager = MagicPrismManager(this)
+        magicPrismManager.initialize()
 
         // LuckPerms initialization
         try {

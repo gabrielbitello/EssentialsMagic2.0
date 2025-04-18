@@ -1,10 +1,14 @@
-Magicfire:
+MagicFire:
 - slotvip
 - Animação esta aplicando a animação do portal de origem no portal final
-- Fazer verificar de alguam forma se o player tem permição de colocar blocos no local para permitir mover o fogo para o local com comando
-- adicionar todas mesnages ao config.yml
+- Fazer verificar de alguma forma se o player tem permição de colocar blocos no local para permitir mover o fogo para o local com comando
+- adicionar todas mensagens ao config.yml
 MagicKey:
 - Se estiver olhando para um bloco ele dispara 2x
-- adicionar todas mesnages ao config.yml
+- adicionar todas mensagens ao config.yml
 MagicTear:
-- adicionar todas mesnages ao config.yml
+- adicionar todas mensagens ao config.yml
+MagicPrism:
+- Aniamção ta rodando o yaw 180 graus e n ta voltando
+- Refazer aparencia menu
+- Não ta calculando o tempo de vida util de cada combustivel

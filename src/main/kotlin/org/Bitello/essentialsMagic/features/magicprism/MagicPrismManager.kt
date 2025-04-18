@@ -1,21 +1,22 @@
-package org.Bitello.essentialsMagic.features.magictear
+package org.Bitello.essentialsMagic.features.magicprism
 
 import org.Bitello.essentialsMagic.EssentialsMagic
 import org.Bitello.essentialsMagic.common.craft.CraftManager
-import org.Bitello.essentialsMagic.features.magictear.gui.MagicTear_Menu_Manager
+import org.Bitello.essentialsMagic.features.magicprism.gui.MagicPrism_Menu_Manager
 import org.bukkit.Location
 import org.bukkit.entity.Player
 
-class MagicTearManager(plugin: EssentialsMagic) : CraftManager(
+
+class MagicPrismManager(plugin: EssentialsMagic) : CraftManager(
     plugin,
-    "Magic Tear",
-    "active_tear_crafts.yml",
-    "tear"
+    "Magic Prism",
+    "active_prism_crafts.yml",
+    "prism"
 ) {
-    private val tearCraftMenu: MagicTear_Menu_Manager
+    private val prismCraftMenu: MagicPrism_Menu_Manager
 
     init {
-        this.tearCraftMenu = MagicTear_Menu_Manager(plugin, this)
+        this.prismCraftMenu = MagicPrism_Menu_Manager(plugin, this)
     }
 
     override fun isSystemEnabled(): Boolean {
@@ -25,8 +26,8 @@ class MagicTearManager(plugin: EssentialsMagic) : CraftManager(
     override fun getCraftingStationId(ids: List<String>): List<String> {
         return ids.flatMap { id ->
             listOfNotNull(
-                configManager.getTearId(),
-                configManager.getTearIdAnimation()
+                configManager.getPrismaId(),
+                configManager.getPrismaIdAnimation()
             )
         }
     }
@@ -48,6 +49,8 @@ class MagicTearManager(plugin: EssentialsMagic) : CraftManager(
     }
 
     override fun openCraftingMenu(player: Player, location: Location) {
-        tearCraftMenu.openMenu(player, location)
+        prismCraftMenu.openMenu(player, location)
     }
 }
+
+
