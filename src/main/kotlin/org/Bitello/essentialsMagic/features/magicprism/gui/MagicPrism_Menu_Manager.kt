@@ -186,6 +186,7 @@ class MagicPrism_Menu_Manager(
         val clickedItem = event.currentItem
 
         val prismaLocation = playerMenuLocations[player.uniqueId] ?: return
+        val originalYaw = prismaLocation.yaw
 
         // Cancelar cliques em slots que não são interativos
         if (slot < 36 && slot !in listOf(SLOT_ITEM_PRIMEIRO, SLOT_ITEM_SEGUNDO, SLOT_COMBUSTIVEL, SLOT_CONFIRMAR)) {
@@ -229,7 +230,7 @@ class MagicPrism_Menu_Manager(
 
                 // remove a mobilia do nexo e coloca outra no lugar
                 NexoFurniture.remove(prismaLocation, null)
-                NexoFurniture.place(configManager.getPrismaId(), prismaLocation, prismaLocation.yaw, BlockFace.UP)
+                NexoFurniture.place(configManager.getPrismaId(), prismaLocation, originalYaw, BlockFace.UP)
 
                 // Enviar mensagem de sucesso
                 player.sendMessage(configManager.getMensagem("craft_collected", "§aVocê coletou os itens do craft!"))
@@ -250,7 +251,7 @@ class MagicPrism_Menu_Manager(
         // Processamento do botão de confirmar
         else if (slot == SLOT_CONFIRMAR) {
             event.isCancelled = true
-            handleConfirmButton(player, inventory, prismaLocation)
+            handleConfirmButton(player, inventory, prismaLocation, originalYaw)
         }
     }
 
@@ -322,7 +323,7 @@ class MagicPrism_Menu_Manager(
         }
     }
 
-    private fun handleConfirmButton(player: Player, inventory: Inventory, prismaLocation: Location) {
+    private fun handleConfirmButton(player: Player, inventory: Inventory, prismaLocation: Location, yaw: Float) {
         // Verificar se há itens nos slots
         val primeiroItem = inventory.getItem(SLOT_ITEM_PRIMEIRO)
         val segundoItem = inventory.getItem(SLOT_ITEM_SEGUNDO)
@@ -432,7 +433,7 @@ class MagicPrism_Menu_Manager(
 
             // Trocar a mobília para a versão animada
             NexoFurniture.remove(prismaLocation, null)
-            NexoFurniture.place(configManager.getPrismaIdAnimation(), prismaLocation, prismaLocation.yaw, BlockFace.UP)
+            NexoFurniture.place(configManager.getPrismaIdAnimation(), prismaLocation, yaw, BlockFace.UP)
 
             // Reabrir o menu para atualizar o estado do craft
             openMenu(player, prismaLocation)
@@ -580,7 +581,40 @@ class MagicPrism_Menu_Manager(
     override fun consumeCraftItems(inventory: Inventory, craftId: String, quantity: Int, location: Location) {
         val materials: Map<String, Int> = getMaterialsForCraft(craftId)
 
-        // Função auxiliar para processar os itens
+        // Calcular o tempo total necessário para o craft
+        val totalCraftTime = getFuelTime(idFromItem(inventory.getItem(SLOT_COMBUSTIVEL)!!) ?: "") * quantity
+
+        var remainingTime = totalCraftTime
+        val fuelSlot = SLOT_COMBUSTIVEL
+        val fuelItem = inventory.getItem(fuelSlot)
+
+        // Processar o combustível
+        fuelItem?.let {
+            val fuelId = idFromItem(it) ?: it.type.name
+            val fuelDuration = getFuelTime(fuelId)
+
+            if (fuelDuration > 0) {
+                val fuelsNeeded = (remainingTime + fuelDuration - 1) / fuelDuration // Arredondar para cima
+                val fuelsToConsume = min(fuelsNeeded, it.amount)
+
+                // Atualizar o tempo restante
+                remainingTime -= fuelsToConsume * fuelDuration
+
+                // Atualizar o slot de combustível
+                it.amount -= fuelsToConsume
+                if (it.amount <= 0) {
+                    inventory.setItem(fuelSlot, null)
+                }
+
+                // Retornar o combustível excedente
+                if (remainingTime <= 0 && it.amount > 0) {
+                    giveOrDropLeftover(it.amount, it, location)
+                    inventory.setItem(fuelSlot, null)
+                }
+            }
+        }
+
+        // Processar os outros materiais
         fun processItem(slot: Int, slotName: String) {
             val item = inventory.getItem(slot)
             item?.let {
@@ -603,10 +637,8 @@ class MagicPrism_Menu_Manager(
             }
         }
 
-        // Processar os itens nos slots
         processItem(SLOT_ITEM_PRIMEIRO, "Primeiro item")
         processItem(SLOT_ITEM_SEGUNDO, "Segundo item")
-        processItem(SLOT_COMBUSTIVEL, "Combustível")
     }
 
     override fun getMaterialsForCraft(craftId: String): Map<String, Int> {

@@ -12,7 +12,7 @@ import java.util.logging.Level
 
 
 class MagicKey_DataBase_Manager(private val plugin: EssentialsMagic) {
-    private val connection: Connection? = DataBaseManager(plugin).getConnection()
+    private val connection: Connection? = plugin.databaseManager.getConnection()
 
     init {
         this.checkAndCreateTable()

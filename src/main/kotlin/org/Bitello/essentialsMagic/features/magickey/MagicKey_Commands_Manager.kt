@@ -103,7 +103,12 @@ class MagicKey_Commands_Manager(
 
         val homeLocation: Location? = mkMySQL.getHome(playerId)
         if (homeLocation != null) {
-            val worldName = homeLocation.world.name
+            val worldName = homeLocation.world?.name
+            if (worldName == null) {
+                player.sendMessage("§cPor favor, defina sua home usand /home set.")
+                return
+            }
+
             val teleportBlacklist: List<String> = plugin.getConfig().getStringList("magickey.world_teleport_blacklist")
             if (teleportBlacklist.contains(worldName) && !player.hasPermission("EssentialsMagic.MagicKey.teleport.byPass")) {
                 player.sendMessage("§cVocê não pode teleportar para este mundo.")
@@ -114,7 +119,7 @@ class MagicKey_Commands_Manager(
             player.sendMessage("§aVocê foi teleportado para sua home.")
             homeCooldowns[playerId] = System.currentTimeMillis()
         } else {
-            player.sendMessage("§cVocê ainda não definiu uma home.")
+            player.sendMessage("§cVocê ainda não definiu uma home. Use §a/home set §cpara definir sua home.")
         }
     }
 

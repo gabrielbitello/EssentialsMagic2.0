@@ -14,7 +14,7 @@ import java.sql.SQLException
 import java.util.*
 
 class Magicfire_DataBase_Manager(private val plugin: EssentialsMagic) {
-    private val connection: Connection? = DataBaseManager(plugin).getConnection()
+    private val connection: Connection? = plugin.databaseManager.getConnection()
     private val configManager: ConfigManager = plugin.configManager
 
     init {

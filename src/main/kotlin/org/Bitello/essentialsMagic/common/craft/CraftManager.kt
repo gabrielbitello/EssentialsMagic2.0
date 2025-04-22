@@ -352,7 +352,9 @@ abstract class CraftManager(
             location.world,
             location.blockX.toDouble(),
             location.blockY.toDouble(),
-            location.blockZ.toDouble()
+            location.blockZ.toDouble(),
+            location.yaw,
+            location.pitch
         )
     }
 
