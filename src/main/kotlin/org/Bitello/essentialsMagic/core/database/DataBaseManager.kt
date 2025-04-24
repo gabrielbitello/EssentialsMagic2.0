@@ -1,79 +1,91 @@
 package org.Bitello.essentialsMagic.core.database
 
-        import org.Bitello.essentialsMagic.EssentialsMagic
-        import java.sql.Connection
-        import java.sql.DriverManager
-        import java.sql.SQLException
-        import java.util.concurrent.Executors
-        import java.util.concurrent.TimeUnit
-        import java.util.logging.Level
+import org.Bitello.essentialsMagic.EssentialsMagic
+import java.sql.Connection
+import java.sql.DriverManager
+import java.sql.SQLException
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.logging.Level
 
-        class DataBaseManager(private val plugin: EssentialsMagic) {
-            private var connection: Connection? = null
-            private val scheduler = Executors.newScheduledThreadPool(1)
+class DataBaseManager(private val plugin: EssentialsMagic) {
+    @Volatile
+    private var connection: Connection? = null
+    private val scheduler = Executors.newSingleThreadScheduledExecutor()
+    private lateinit var dbUrl: String
+    private lateinit var username: String
+    private lateinit var password: String
 
-            fun initialize() {
-                val sqldata = plugin.configManager.getMysqlConfig()
-                val host = sqldata["host"] as String
-                val port = sqldata["port"] as Int
-                val database = sqldata["database"] as String
-                val username = sqldata["username"] as String
-                val password = sqldata["password"] as String
-                val url = "jdbc:mysql://$host:$port/$database"
+    fun initialize() {
+        synchronized(this) {
+            if (this::dbUrl.isInitialized) return // Já inicializado
 
-                try {
-                    connection = DriverManager.getConnection(url, username, password)
-                    EssentialsMagic.instance.logger.info("Connected to MySQL database successfully.")
-                } catch (e: SQLException) {
-                    EssentialsMagic.instance.logger.log(Level.SEVERE, "Could not connect to MySQL database", e)
+            val config = plugin.configManager.getMysqlConfig()
+            val host = config["host"] as String
+            val port = config["port"] as Int
+            val database = config["database"] as String
+            username = config["username"] as String
+            password = config["password"] as String
+            dbUrl = "jdbc:mysql://$host:$port/$database?autoReconnect=true&useSSL=false"
+
+            connect()
+            startConnectionMonitor()
+        }
+    }
+
+    private fun connect() {
+        try {
+            connection = DriverManager.getConnection(dbUrl, username, password)
+            plugin.logger.info("Connected to MySQL database successfully.")
+        } catch (e: SQLException) {
+            plugin.logger.log(Level.SEVERE, "Failed to connect to MySQL database", e)
+        }
+    }
+
+    fun getConnection(): Connection? {
+        synchronized(this) {
+            try {
+                if (connection == null || connection!!.isClosed || !connection!!.isValid(2)) {
+                    plugin.logger.warning("MySQL connection is invalid. Reconnecting...")
+                    connect()
                 }
-
-                // Agendar reinicialização da conexão a cada 5 minutos
-                scheduler.scheduleAtFixedRate({
-                    try {
-                        closeConnection()
-                        connection = DriverManager.getConnection(url, username, password)
-                        EssentialsMagic.instance.logger.info("MySQL connection restarted successfully.")
-                    } catch (e: SQLException) {
-                        EssentialsMagic.instance.logger.log(Level.SEVERE, "Could not restart MySQL connection", e)
-                    }
-                }, 5, 5, TimeUnit.MINUTES)
+            } catch (e: SQLException) {
+                plugin.logger.log(Level.SEVERE, "Error while validating MySQL connection", e)
+                connect()
             }
+            return connection
+        }
+    }
 
-            fun getConnection(): Connection? {
-                synchronized(this) {
-                    try {
-                        if (connection == null || connection!!.isClosed) {
-                            EssentialsMagic.instance.logger.warning("MySQL connection was closed. Reinitializing...")
-                            initialize()
-                        }
-                    } catch (e: SQLException) {
-                        EssentialsMagic.instance.logger.log(Level.SEVERE, "Error while checking MySQL connection state", e)
-                        initialize()
-                    }
-                    return connection
-                }
-            }
-
-            fun closeConnection() {
-                if (connection != null) {
-                    try {
-                        connection!!.close()
-                        EssentialsMagic.instance.logger.info("MySQL connection closed successfully.")
-                    } catch (e: SQLException) {
-                        EssentialsMagic.instance.logger.log(Level.SEVERE, "Could not close MySQL connection", e)
-                    }
-                }
-            }
-
-            fun shutdownScheduler() {
-                scheduler.shutdown()
-                try {
-                    if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                        scheduler.shutdownNow()
-                    }
-                } catch (e: InterruptedException) {
-                    scheduler.shutdownNow()
-                }
+    fun closeConnection() {
+        synchronized(this) {
+            try {
+                connection?.close()
+                plugin.logger.info("MySQL connection closed successfully.")
+            } catch (e: SQLException) {
+                plugin.logger.log(Level.SEVERE, "Error while closing MySQL connection", e)
+            } finally {
+                connection = null
             }
         }
+    }
+
+    private fun startConnectionMonitor() {
+        scheduler.scheduleAtFixedRate({
+            try {
+                if (connection == null || connection!!.isClosed || !connection!!.isValid(2)) {
+                    plugin.logger.warning("Connection check failed. Attempting reconnect...")
+                    connect()
+                }
+            } catch (e: SQLException) {
+                plugin.logger.log(Level.WARNING, "Error during connection monitor", e)
+                connect()
+            }
+        }, 5, 5, TimeUnit.MINUTES)
+    }
+
+    fun shutdown() {
+        scheduler.shutdownNow()
+        closeConnection()
+    }
+}

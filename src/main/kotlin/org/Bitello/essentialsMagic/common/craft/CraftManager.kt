@@ -295,10 +295,30 @@ abstract class CraftManager(
             val player = event.player
             val location = normalizeLocation(event.baseEntity.location)
 
+            // Verificar se o jogador tem permissão no local
+            //if (!player.hasPermission("essentialsMagic.interact") || !canPlayerInteractWithFurniture(player, location)) {
+            //    player.sendMessage("§cVocê não tem permissão para interagir com esta mobília aqui.")
+            //    return
+            //}
+
             // Abrir o menu da estação de craft
             openCraftingMenu(player, location)
         }
     }
+
+    // Método para verificar se o jogador pode interagir com a mobília
+    /*private fun canPlayerInteractWithFurniture(player: org.bukkit.entity.Player, location: Location): Boolean {
+        // Criar um evento fictício de interação com mobília para verificar se seria cancelado
+        val interactEvent = NexoFurnitureInteractEvent(
+            player,
+            location,
+            null // Passe o objeto ou dados da mobília, se necessário
+        )
+        org.bukkit.Bukkit.getPluginManager().callEvent(interactEvent)
+
+        // Retorna true se o evento não for cancelado
+        return !interactEvent.isCancelled
+    }*/
 
     // Método atualizado para incluir combustível e tempo de combustível
     fun startCraft(location: Location, craftId: String?, resultItemId: String?, quantity: Int, fuelId: String = "", fuelTime: Int = 0): Boolean {
